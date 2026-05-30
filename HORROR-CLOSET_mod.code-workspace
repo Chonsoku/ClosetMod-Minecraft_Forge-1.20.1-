@@ -1,0 +1,22 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"gradle.autoDetect": "on",
+		"gradle.allowParallelRun": false,
+		"gradle.nestedProjects": false,
+		"java.configuration.runtimes": [
+			{
+				"name": "JavaSE-17",
+				"path": "./jdk17",
+				"default": true
+			}
+		],
+		"java.import.gradle.java.home": "./jdk17",
+		"java.configuration.updateBuildConfiguration": "automatic",
+		"java.compile.nullAnalysis.mode": "automatic"
+	}
+}
