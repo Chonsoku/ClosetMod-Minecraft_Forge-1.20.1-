@@ -25,6 +25,8 @@ replay_pid*
 
 # Java and other files
 .gradle/
+run/
+run-data/
 build/
 out/
 .idea/
