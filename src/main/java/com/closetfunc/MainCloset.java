@@ -30,7 +30,6 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingChangeTargetEvent;
 import net.minecraftforge.event.entity.living.LivingEvent;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
-import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
@@ -194,34 +193,6 @@ public class MainCloset {
                 event.setCanceled(true); 
             }
         }
-        }
-        
-        // ↓Жоская прикалюха↓
-        @SubscribeEvent
-        public static void onPlayerStepOnCloset(net.minecraftforge.event.entity.living.LivingEvent.LivingTickEvent event) {
-            if (event.getEntity() instanceof ServerPlayer player && !player.level().isClientSide) {
-                BlockPos posUnder = player.blockPosition().below(2);
-                if (player.level().getBlockState(posUnder).is(MainCloset.CLOSET_BLOCK.get()) 
-                    && !player.isPassenger() 
-                    && !player.isShiftKeyDown()
-                    && !player.getPersistentData().getBoolean("IsInCloset")) {
-                    ArmorStand chair = new ArmorStand(player.level(), posUnder.getX() + 0.5, posUnder.getY() + 2.0, posUnder.getZ() + 0.5);
-                    chair.setInvisible(true);
-                    chair.setNoGravity(true);
-                    chair.getEntityData().set(net.minecraft.world.entity.decoration.ArmorStand.DATA_CLIENT_FLAGS, (byte)(0x01 | 0x10));
-                    
-                    chair.getPersistentData().putBoolean("ClosetChair", true); // Наша метка
-                    
-                    player.level().addFreshEntity(chair);
-                    player.startRiding(chair, true);
-                }
-                
-                if (player.isShiftKeyDown() && player.getVehicle() instanceof ArmorStand chair) {
-                    if (chair.getPersistentData().getBoolean("ClosetChair")) {
-                        chair.discard();
-                    }
-                }
-            }
         }
 
         @SubscribeEvent
