@@ -79,42 +79,104 @@ public class MainCloset {
     
     
 
-
     // --- КЛАСС БЛОКА ШКАФА ---
     public static class ClosetBlock extends Block implements EntityBlock {
         public static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = 
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
         public static final net.minecraft.world.level.block.state.properties.DirectionProperty FACING = 
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
-                
-        private static final VoxelShape SHAPE = Block.box(1, 0, 1, 15, 32, 15);
+        // Добавляем свойство половины (верх/низ)
+        public static final net.minecraft.world.level.block.state.properties.EnumProperty<net.minecraft.world.level.block.state.properties.DoubleBlockHalf> HALF = 
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.DOUBLE_BLOCK_HALF;
+        private static final VoxelShape LOWER_SHAPE = Block.box(1, 0, 1, 15, 32, 15);
+        private static final VoxelShape UPPER_SHAPE = Block.box(1, -16, 1, 15, 16, 15);
         
         public ClosetBlock(Properties properties) { 
             super(properties); 
-            this.registerDefaultState(this.stateDefinition.any().setValue(OPEN, false).setValue(FACING, net.minecraft.core.Direction.NORTH));
+            this.registerDefaultState(this.stateDefinition.any()
+                .setValue(OPEN, false)
+                .setValue(FACING, net.minecraft.core.Direction.NORTH)
+                .setValue(HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER));
         }
+        
         @Override
         public BlockState getStateForPlacement(net.minecraft.world.item.context.BlockPlaceContext ctx) {
-            return this.defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
+            BlockPos blockpos = ctx.getClickedPos();
+            Level level = ctx.getLevel();
+            if (blockpos.getY() < level.getMaxBuildHeight() - 1 && level.getBlockState(blockpos.above()).canBeReplaced(ctx)) {
+                return this.defaultBlockState()
+                    .setValue(FACING, ctx.getHorizontalDirection().getOpposite())
+                    .setValue(HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
+            }
+            return null;
+        }
+
+        @Override
+        public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable net.minecraft.world.entity.LivingEntity placer, net.minecraft.world.item.ItemStack stack) {
+            level.setBlock(pos.above(), state.setValue(HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), 3);
+        }
+
+        // Если ломают одну половину — ломается и вторая
+        @Override
+        public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
+            if (!level.isClientSide && player.isCreative()) {
+                net.minecraft.world.level.block.state.properties.DoubleBlockHalf half = state.getValue(HALF);
+                if (half == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) {
+                    BlockPos blockpos = pos.below();
+                    BlockState blockstate = level.getBlockState(blockpos);
+                    if (blockstate.is(state.getBlock()) && blockstate.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) {
+                        level.setBlock(blockpos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 35);
+                        level.levelEvent(player, 2001, blockpos, Block.getId(blockstate));
+                    }
+                }
+            }
+            super.playerWillDestroy(level, pos, state, player);
         }
         
         @Override 
         public VoxelShape getShape(BlockState state, BlockGetter lvl, BlockPos pos, CollisionContext ctx) { 
-            return SHAPE; 
+            return state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? LOWER_SHAPE : UPPER_SHAPE; 
+        }
+        @Override
+        public VoxelShape getVisualShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+            return net.minecraft.world.phys.shapes.Shapes.empty();
+        }
+
+        @Override
+        public net.minecraft.world.level.block.RenderShape getRenderShape(BlockState state) {
+            return state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER 
+                ? net.minecraft.world.level.block.RenderShape.MODEL 
+                : net.minecraft.world.level.block.RenderShape.INVISIBLE;
         }
 
         @Override
         public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
-            if (hit.getDirection() == net.minecraft.core.Direction.UP || player.getY() > pos.getY() + 1.5) {
+            if (state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER 
+                    && hit.getDirection() == net.minecraft.core.Direction.UP) {
                 return InteractionResult.PASS;
             }
+
+            BlockPos mainPos = state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? pos : pos.below();
+            BlockState mainState = level.getBlockState(mainPos);
+
+            if (!mainState.is(this)) {
+                return InteractionResult.FAIL;
+            }
+
             if (level.isClientSide) {
-                if (level.getBlockEntity(pos) instanceof ClosetBlockEntity) player.getPersistentData().putBoolean("IsInCloset", true);
+                if (level.getBlockEntity(mainPos) instanceof ClosetBlockEntity) player.getPersistentData().putBoolean("IsInCloset", true);
                 return InteractionResult.SUCCESS;
             }
-            if (level.getBlockEntity(pos) instanceof ClosetBlockEntity be && be.trappedPlayerId == null) {
+            
+            if (level.getBlockEntity(mainPos) instanceof ClosetBlockEntity be && be.trappedPlayerId == null) {
                 if (player instanceof ServerPlayer serverPlayer) {
-                    level.setBlock(pos, state.setValue(OPEN, true), 3);
+                    level.setBlock(mainPos, mainState.setValue(OPEN, true), 3);
+                    BlockPos topPos = mainPos.above();
+                    BlockState topState = level.getBlockState(topPos);
+                    if (topState.is(this)) {
+                        level.setBlock(topPos, topState.setValue(OPEN, true), 3);
+                    }
+                    
                     be.enterCloset(serverPlayer);
                 }
             }
@@ -122,14 +184,29 @@ public class MainCloset {
         }
 
         @Override
-        protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block, BlockState> builder) {
-            builder.add(FACING, OPEN);
+        public BlockState updateShape(BlockState state, net.minecraft.core.Direction direction, BlockState neighborState, net.minecraft.world.level.LevelAccessor level, BlockPos currentPos, BlockPos neighborPos) {
+            net.minecraft.world.level.block.state.properties.DoubleBlockHalf half = state.getValue(HALF);
+            if (direction.getAxis() == net.minecraft.core.Direction.Axis.Y && (half == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) == (direction == net.minecraft.core.Direction.UP)) {
+                if (!neighborState.is(this) || neighborState.getValue(HALF) == half) {
+                    return net.minecraft.world.level.block.Blocks.AIR.defaultBlockState();
+                }
+            }
+            return super.updateShape(state, direction, neighborState, level, currentPos, neighborPos);
         }
 
-        @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ClosetBlockEntity(pos, state); }
+        @Override
+        protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block, BlockState> builder) {
+            builder.add(FACING, OPEN, HALF);
+        }
+
+        @Nullable @Override 
+        public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { 
+            return state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? new ClosetBlockEntity(pos, state) : null; 
+        }
         
         @Nullable @Override 
         public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level lvl, BlockState st, BlockEntityType<T> type) {
+            if (st.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) return null;
             if (type == CLOSET_BE.get()) {
                 return (level, pos, state, blockEntity) -> {
                     if (level.isClientSide || !(blockEntity instanceof ClosetBlockEntity be) || be.trappedPlayerId == null) return;
@@ -138,6 +215,9 @@ public class MainCloset {
                     if (player == null) { 
                         be.trappedPlayerId = null; 
                         level.setBlock(pos, state.setValue(OPEN, false), 3);
+                        BlockPos topPos = pos.above();
+                        BlockState topState = level.getBlockState(topPos);
+                        if (topState.is(this)) level.setBlock(topPos, topState.setValue(OPEN, false), 3);
                         be.setChanged(); 
                         return; 
                     }
@@ -154,6 +234,12 @@ public class MainCloset {
         public void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
             if (state.getValue(OPEN)) {
                 level.setBlock(pos, state.setValue(OPEN, false), 3);
+                BlockPos otherPos = state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER ? pos.above() : pos.below();
+                BlockState otherState = level.getBlockState(otherPos);
+                if (otherState.is(this)) {
+                    level.setBlock(otherPos, otherState.setValue(OPEN, false), 3);
+                }
+
                 level.playSound(null, pos, 
                     net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
                     net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
@@ -162,7 +248,7 @@ public class MainCloset {
     }
 
 
-    // --- КЛАСС СУЩЕСТВЕННОСТИ БЛОКА (BLOCK ENTITY) ---
+    // --- КЛАСС СУЩНОСТИ БЛОКА (BLOCK ENTITY) ---
     public static class ClosetBlockEntity extends BlockEntity {
         public UUID trappedPlayerId;
         public ClosetBlockEntity(BlockPos pos, BlockState state) { super(CLOSET_BE.get(), pos, state); }
@@ -172,7 +258,6 @@ public class MainCloset {
             this.trappedPlayerId = player.getUUID();
             this.setChanged();
 
-            // Сохраняем точные мировые координаты игрока ПЕРЕД телепортацией, чтобы он вернулся на то же место
             player.getPersistentData().putBoolean("IsInCloset", true);
             player.getPersistentData().putDouble("closet_exit_x", player.getX());
             player.getPersistentData().putDouble("closet_exit_y", player.getY());
@@ -191,6 +276,7 @@ public class MainCloset {
                 currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
             }
         }
+
         public void exitCloset(ServerPlayer player) {
             player.getPersistentData().putBoolean("IsInCloset", false);
             player.setNoGravity(false);    
@@ -198,25 +284,29 @@ public class MainCloset {
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
                 net.minecraft.world.effect.MobEffects.DARKNESS, 150, 0, false, false
             ));
-
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
                 BlockState state = currentLevel.getBlockState(worldPosition);
                 if (state.hasProperty(ClosetBlock.OPEN)) {
                     currentLevel.setBlock(worldPosition, state.setValue(ClosetBlock.OPEN, true), 3);
-                    
+                    BlockPos topPos = worldPosition.above();
+                    BlockState topState = currentLevel.getBlockState(topPos);
+                    if (topState.is(state.getBlock())) {
+                        currentLevel.setBlock(topPos, topState.setValue(ClosetBlock.OPEN, true), 3);
+                    }
                     currentLevel.playSound(null, worldPosition, 
                         net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
                         net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
-
-                    currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
+                    currentLevel.scheduleTick(worldPosition, state.getBlock(), 25);
                 }
                 if (state.hasProperty(ClosetBlock.FACING)) {
                     net.minecraft.core.Direction facing = state.getValue(ClosetBlock.FACING);
                     BlockPos exitBlockPos = worldPosition.relative(facing);
+                    
                     double exitX = exitBlockPos.getX() + 0.5;
                     double exitY = worldPosition.getY() + 0.01;
                     double exitZ = exitBlockPos.getZ() + 0.5;
+                    
                     float yaw = facing.toYRot();
                     float pitch = player.getXRot();
                     
@@ -225,7 +315,6 @@ public class MainCloset {
                     player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY(), worldPosition.getZ() - 1.0);
                 }
             }
-            
             trappedPlayerId = null;
             this.setChanged();
         }
