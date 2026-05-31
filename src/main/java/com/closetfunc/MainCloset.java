@@ -301,9 +301,9 @@ public class MainCloset {
         public void exitCloset(ServerPlayer player) {
             player.getPersistentData().putBoolean("IsInCloset", false);
             player.setNoGravity(false);    
-            player.getPersistentData().putLong("ClosetCooldownUntil", player.level().getGameTime() + 150L);
+            player.getPersistentData().putLong("ClosetCooldownUntil", player.level().getGameTime() + 200L);
             player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                net.minecraft.world.effect.MobEffects.DARKNESS, 150, 0, false, false
+                net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false
             ));
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
@@ -355,7 +355,7 @@ public class MainCloset {
                     player.getPersistentData().putBoolean("IsInCloset", false); 
                     player.setNoGravity(false); 
                     serverPlayer.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                        net.minecraft.world.effect.MobEffects.DARKNESS, 150, 0, false, false
+                        net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false
                     ));
                 }
             }
@@ -373,7 +373,6 @@ public class MainCloset {
             if (tag.hasUUID("TrappedPlayer")) trappedPlayerId = tag.getUUID("TrappedPlayer"); 
         }
     }
-
 
 
 
