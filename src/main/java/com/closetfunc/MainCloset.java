@@ -381,13 +381,13 @@ public class MainCloset {
     public static class HiderEvents {
         @SubscribeEvent
         public static void onMobTarget(LivingChangeTargetEvent event) {
-        if (event.getNewTarget() instanceof Player player) {
-            long currentTime = player.level().getGameTime();
-            long cooldownUntil = player.getPersistentData().getLong("ClosetCooldownUntil");
-            if (player.getPersistentData().getBoolean("IsInCloset") || currentTime < cooldownUntil) {
-                event.setCanceled(true); 
+            if (event.getNewTarget() instanceof Player player) {
+                long currentTime = player.level().getGameTime();
+                long cooldownUntil = player.getPersistentData().getLong("ClosetCooldownUntil");
+                if (player.getPersistentData().getBoolean("IsInCloset") || currentTime < cooldownUntil) {
+                    event.setCanceled(true); 
+                }
             }
-        }
         }
 
         @SubscribeEvent
@@ -400,16 +400,19 @@ public class MainCloset {
         @SubscribeEvent
         public static void onMobTick(LivingEvent.LivingTickEvent event) {
             if (event.getEntity().level().isClientSide) return;
-            if (event.getEntity() instanceof Mob mob && mob instanceof Monster) {
-                Player closest = mob.level().getNearestPlayer(mob, 16.0D);
-                if (closest != null && closest.getPersistentData().getBoolean("IsInCloset")) {
-                    mob.getNavigation().stop();
-                    mob.setTarget(null);
-                    mob.setNoAi(true);
-                    mob.getPersistentData().putBoolean("disabled_by_closet", true);
-                } else if (mob.getPersistentData().getBoolean("disabled_by_closet")) {
-                    mob.setNoAi(false);
-                    mob.getPersistentData().remove("disabled_by_closet");
+            if (event.getEntity() instanceof Mob mob) {
+                net.minecraft.world.entity.LivingEntity target = mob.getTarget();
+                if (target instanceof Player player) {
+                    long currentTime = player.level().getGameTime();
+                    long cooldownUntil = player.getPersistentData().getLong("ClosetCooldownUntil");
+                    if (player.getPersistentData().getBoolean("IsInCloset") || currentTime < cooldownUntil) {
+                        mob.setTarget(null);
+                        if (mob instanceof Monster) {
+                            mob.getBrain().eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.ATTACK_TARGET);
+                            mob.getBrain().eraseMemory(net.minecraft.world.entity.ai.memory.MemoryModuleType.WALK_TARGET);
+                        }
+                        mob.getNavigation().stop();
+                    }
                 }
             }
         }
