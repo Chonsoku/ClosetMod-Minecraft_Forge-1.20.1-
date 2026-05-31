@@ -1,5 +1,6 @@
 {
   "variants": {
-    "": { "model": "closet_mod:block/closet" }
+    "open=false": { "model": "closet_mod:block/closet" },
+    "open=true": { "model": "closet_mod:block/closet_open" }
   }
 }
