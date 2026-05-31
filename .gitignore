@@ -30,4 +30,5 @@ run-data/
 build/
 out/
 .idea/
+.vscode/
 *.log
