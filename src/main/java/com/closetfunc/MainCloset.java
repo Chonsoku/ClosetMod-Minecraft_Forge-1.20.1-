@@ -84,11 +84,18 @@ public class MainCloset {
     public static class ClosetBlock extends Block implements EntityBlock {
         public static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = 
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
+        public static final net.minecraft.world.level.block.state.properties.DirectionProperty FACING = 
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
+                
         private static final VoxelShape SHAPE = Block.box(1, 0, 1, 15, 32, 15);
         
         public ClosetBlock(Properties properties) { 
             super(properties); 
-            this.registerDefaultState(this.stateDefinition.any().setValue(OPEN, false));
+            this.registerDefaultState(this.stateDefinition.any().setValue(OPEN, false).setValue(FACING, net.minecraft.core.Direction.NORTH));
+        }
+        @Override
+        public BlockState getStateForPlacement(net.minecraft.world.item.context.BlockPlaceContext ctx) {
+            return this.defaultBlockState().setValue(FACING, ctx.getHorizontalDirection().getOpposite());
         }
         
         @Override 
@@ -113,7 +120,7 @@ public class MainCloset {
 
         @Override
         protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block, BlockState> builder) {
-            builder.add(OPEN);
+            builder.add(FACING, OPEN);
         }
 
         @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ClosetBlockEntity(pos, state); }
@@ -139,7 +146,7 @@ public class MainCloset {
             }
             return null;
         }
-        // ЭТОТ МЕТОД ЗАКРЫВАЕТ ДВЕРЬ ШКАФА ПОДГРУЖЕННЫМ ТАЙМЕРОМ
+
         @Override
         public void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
             if (state.getValue(OPEN)) {
@@ -150,6 +157,7 @@ public class MainCloset {
             }
         }
     }
+
 
     // --- КЛАСС СУЩЕСТВЕННОСТИ БЛОКА (BLOCK ENTITY) ---
     public static class ClosetBlockEntity extends BlockEntity {
@@ -166,16 +174,12 @@ public class MainCloset {
             player.getPersistentData().putDouble("closet_exit_x", player.getX());
             player.getPersistentData().putDouble("closet_exit_y", player.getY());
             player.getPersistentData().putDouble("closet_exit_z", player.getZ());
-            
-            // Сохраняем координаты самого шкафа для поиска тикером
             player.getPersistentData().putIntArray("closet_pos", new int[]{worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()});
 
             player.setNoGravity(true);
             player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY() + 0.01, worldPosition.getZ() + 0.5);
             player.setDeltaMovement(0, 0, 0);
             player.hurtMarked = true;
-
-            // Запускаем таймер на автоматическое закрытие двери через 25 тиков (1.25 сек)
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
                 currentLevel.playSound(null, worldPosition, 
@@ -197,21 +201,26 @@ public class MainCloset {
                 BlockState state = currentLevel.getBlockState(worldPosition);
                 if (state.hasProperty(ClosetBlock.OPEN)) {
                     currentLevel.setBlock(worldPosition, state.setValue(ClosetBlock.OPEN, true), 3);
+                    
                     currentLevel.playSound(null, worldPosition, 
                         net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
                         net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+
                     currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
                 }
-            }
-
-            // Возвращаем игрока в точные координаты, где он стоял до входа в шкаф
-            if (player.getPersistentData().contains("closet_exit_x")) {
-                double rx = player.getPersistentData().getDouble("closet_exit_x");
-                double ry = player.getPersistentData().getDouble("closet_exit_y");
-                double rz = player.getPersistentData().getDouble("closet_exit_z");
-                player.teleportTo(rx, ry, rz);
-            } else {
-                player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY(), worldPosition.getZ() - 1.0);
+                if (state.hasProperty(ClosetBlock.FACING)) {
+                    net.minecraft.core.Direction facing = state.getValue(ClosetBlock.FACING);
+                    BlockPos exitBlockPos = worldPosition.relative(facing);
+                    double exitX = exitBlockPos.getX() + 0.5;
+                    double exitY = worldPosition.getY() + 0.01;
+                    double exitZ = exitBlockPos.getZ() + 0.5;
+                    float yaw = facing.toYRot();
+                    float pitch = player.getXRot();
+                    
+                    player.teleportTo((net.minecraft.server.level.ServerLevel) currentLevel, exitX, exitY, exitZ, yaw, pitch);
+                } else {
+                    player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY(), worldPosition.getZ() - 1.0);
+                }
             }
             
             trappedPlayerId = null;
