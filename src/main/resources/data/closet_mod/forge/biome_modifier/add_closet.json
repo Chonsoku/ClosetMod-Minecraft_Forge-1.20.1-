@@ -1,0 +1,6 @@
+{
+  "type": "forge:add_features",
+  "biomes": "#minecraft:is_overworld",
+  "features": "closet_mod:closet_spawn_placed",
+  "step": "surface_structures"
+}
