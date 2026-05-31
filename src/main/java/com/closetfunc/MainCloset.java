@@ -49,6 +49,9 @@ public class MainCloset {
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID);
     public static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MOD_ID);
+    public static final DeferredRegister<net.minecraft.world.level.levelgen.feature.Feature<?>> FEATURES = 
+        DeferredRegister.create(ForgeRegistries.FEATURES, MOD_ID);
+
 
     public static final RegistryObject<Block> CLOSET_BLOCK = BLOCKS.register("closet", 
         () -> new ClosetBlock(BlockBehaviour.Properties.of()
@@ -57,9 +60,10 @@ public class MainCloset {
                 .noOcclusion()
                 .dynamicShape()));
     public static final RegistryObject<Item> CLOSET_ITEM = ITEMS.register("closet", () -> new BlockItem(CLOSET_BLOCK.get(), new Item.Properties()));
-    
     public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be", 
             () -> BlockEntityType.Builder.of(ClosetBlockEntity::new, CLOSET_BLOCK.get()).build(com.mojang.datafixers.DSL.remainderType()));
+    public static final RegistryObject<net.minecraft.world.level.levelgen.feature.Feature<net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration>> CLOSET_FEATURE = 
+        FEATURES.register("closet_feature", () -> new ClosetFeature(net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration.CODEC));
             
 
     public MainCloset() {
@@ -67,6 +71,7 @@ public class MainCloset {
         BLOCKS.register(bus);
         ITEMS.register(bus);
         BLOCK_ENTITIES.register(bus);
+        FEATURES.register(bus);
 
         MinecraftForge.EVENT_BUS.register(MainCloset.class);
         MinecraftForge.EVENT_BUS.register(ClosetBlockEntity.class);
@@ -74,6 +79,13 @@ public class MainCloset {
 
         if (FMLEnvironment.dist.isClient()) {
             ClosetClient.init();
+        }
+
+        bus.addListener(this::addCreative);
+    }
+    private void addCreative(net.minecraftforge.event.BuildCreativeModeTabContentsEvent event) {
+    if (event.getTabKey() == net.minecraft.world.item.CreativeModeTabs.FUNCTIONAL_BLOCKS) {
+        event.accept(CLOSET_ITEM.get());
         }
     }
     
@@ -85,7 +97,6 @@ public class MainCloset {
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
         public static final net.minecraft.world.level.block.state.properties.DirectionProperty FACING = 
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.HORIZONTAL_FACING;
-        // Добавляем свойство половины (верх/низ)
         public static final net.minecraft.world.level.block.state.properties.EnumProperty<net.minecraft.world.level.block.state.properties.DoubleBlockHalf> HALF = 
                 net.minecraft.world.level.block.state.properties.BlockStateProperties.DOUBLE_BLOCK_HALF;
         private static final VoxelShape LOWER_SHAPE = Block.box(1, 0, 1, 15, 32, 15);
@@ -116,7 +127,6 @@ public class MainCloset {
             level.setBlock(pos.above(), state.setValue(HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), 3);
         }
 
-        // Если ломают одну половину — ломается и вторая
         @Override
         public void playerWillDestroy(Level level, BlockPos pos, BlockState state, Player player) {
             if (!level.isClientSide && player.isCreative()) {
@@ -228,6 +238,17 @@ public class MainCloset {
                 };
             }
             return null;
+        }
+
+        @Override
+        public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
+            if (!level.isClientSide && state.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) {
+                BlockPos topPos = pos.above();
+                if (level.getBlockState(topPos).canBeReplaced()) {
+                    level.setBlock(topPos, state.setValue(HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER), 3);
+                }
+            }
+            super.onPlace(state, level, pos, oldState, isMoving);
         }
 
         @Override
