@@ -7,7 +7,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.entity.monster.Monster;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
@@ -44,6 +43,7 @@ import java.util.UUID;
 @Mod(MainCloset.MOD_ID)
 public class MainCloset {
     public static final String MOD_ID = "closet_mod";
+    
 
     // --- РЕГИСТРАЦИЯ КОМПОНЕНТОВ ---
     public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, MOD_ID);
@@ -60,6 +60,7 @@ public class MainCloset {
     
     public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be", 
             () -> BlockEntityType.Builder.of(ClosetBlockEntity::new, CLOSET_BLOCK.get()).build(com.mojang.datafixers.DSL.remainderType()));
+            
 
     public MainCloset() {
         var bus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -75,13 +76,25 @@ public class MainCloset {
             ClosetClient.init();
         }
     }
+    
+    
 
 
     // --- КЛАСС БЛОКА ШКАФА ---
     public static class ClosetBlock extends Block implements EntityBlock {
+        public static final net.minecraft.world.level.block.state.properties.BooleanProperty OPEN = 
+                net.minecraft.world.level.block.state.properties.BlockStateProperties.OPEN;
         private static final VoxelShape SHAPE = Block.box(1, 0, 1, 15, 32, 15);
-        public ClosetBlock(Properties properties) { super(properties); }
-        @Override public VoxelShape getShape(BlockState state, BlockGetter lvl, BlockPos pos, CollisionContext ctx) { return SHAPE; }
+        
+        public ClosetBlock(Properties properties) { 
+            super(properties); 
+            this.registerDefaultState(this.stateDefinition.any().setValue(OPEN, false));
+        }
+        
+        @Override 
+        public VoxelShape getShape(BlockState state, BlockGetter lvl, BlockPos pos, CollisionContext ctx) { 
+            return SHAPE; 
+        }
 
         @Override
         public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
@@ -90,12 +103,21 @@ public class MainCloset {
                 return InteractionResult.SUCCESS;
             }
             if (level.getBlockEntity(pos) instanceof ClosetBlockEntity be && be.trappedPlayerId == null) {
-                if (player instanceof ServerPlayer serverPlayer) be.enterCloset(serverPlayer);
+                if (player instanceof ServerPlayer serverPlayer) {
+                    level.setBlock(pos, state.setValue(OPEN, true), 3);
+                    be.enterCloset(serverPlayer);
+                }
             }
             return InteractionResult.SUCCESS;
         }
 
+        @Override
+        protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<Block, BlockState> builder) {
+            builder.add(OPEN);
+        }
+
         @Nullable @Override public BlockEntity newBlockEntity(BlockPos pos, BlockState state) { return new ClosetBlockEntity(pos, state); }
+        
         @Nullable @Override 
         public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level lvl, BlockState st, BlockEntityType<T> type) {
             if (type == CLOSET_BE.get()) {
@@ -105,6 +127,7 @@ public class MainCloset {
                     ServerPlayer player = (ServerPlayer) level.getPlayerByUUID(be.trappedPlayerId);
                     if (player == null) { 
                         be.trappedPlayerId = null; 
+                        level.setBlock(pos, state.setValue(OPEN, false), 3);
                         be.setChanged(); 
                         return; 
                     }
@@ -115,6 +138,16 @@ public class MainCloset {
                 };
             }
             return null;
+        }
+        // ЭТОТ МЕТОД ЗАКРЫВАЕТ ДВЕРЬ ШКАФА ПОДГРУЖЕННЫМ ТАЙМЕРОМ
+        @Override
+        public void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, net.minecraft.util.RandomSource random) {
+            if (state.getValue(OPEN)) {
+                level.setBlock(pos, state.setValue(OPEN, false), 3);
+                level.playSound(null, pos, 
+                    net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
+                    net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+            }
         }
     }
 
@@ -128,14 +161,29 @@ public class MainCloset {
             this.trappedPlayerId = player.getUUID();
             this.setChanged();
 
+            // Сохраняем точные мировые координаты игрока ПЕРЕД телепортацией, чтобы он вернулся на то же место
             player.getPersistentData().putBoolean("IsInCloset", true);
-            player.getPersistentData().putIntArray("closet_exit_pos", new int[]{player.getBlockX(), player.getBlockY(), player.getBlockZ()});
+            player.getPersistentData().putDouble("closet_exit_x", player.getX());
+            player.getPersistentData().putDouble("closet_exit_y", player.getY());
+            player.getPersistentData().putDouble("closet_exit_z", player.getZ());
+            
+            // Сохраняем координаты самого шкафа для поиска тикером
+            player.getPersistentData().putIntArray("closet_pos", new int[]{worldPosition.getX(), worldPosition.getY(), worldPosition.getZ()});
+
             player.setNoGravity(true);
             player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY() + 0.01, worldPosition.getZ() + 0.5);
             player.setDeltaMovement(0, 0, 0);
             player.hurtMarked = true;
-        }
 
+            // Запускаем таймер на автоматическое закрытие двери через 25 тиков (1.25 сек)
+            Level currentLevel = this.getLevel();
+            if (currentLevel != null) {
+                currentLevel.playSound(null, worldPosition, 
+                    net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN, 
+                    net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
+            }
+        }
         public void exitCloset(ServerPlayer player) {
             player.getPersistentData().putBoolean("IsInCloset", false);
             player.setNoGravity(false);    
@@ -144,9 +192,28 @@ public class MainCloset {
                 net.minecraft.world.effect.MobEffects.DARKNESS, 150, 0, false, false
             ));
 
-            int[] exitPos = player.getPersistentData().getIntArray("closet_exit_pos");
-            if (exitPos.length == 3) player.teleportTo(exitPos[0] + 0.5, exitPos[1] + 0.5, exitPos[2] + 0.5);
-            else player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY(), worldPosition.getZ() - 1.0);
+            Level currentLevel = this.getLevel();
+            if (currentLevel != null) {
+                BlockState state = currentLevel.getBlockState(worldPosition);
+                if (state.hasProperty(ClosetBlock.OPEN)) {
+                    currentLevel.setBlock(worldPosition, state.setValue(ClosetBlock.OPEN, true), 3);
+                    currentLevel.playSound(null, worldPosition, 
+                        net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
+                        net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
+                }
+            }
+
+            // Возвращаем игрока в точные координаты, где он стоял до входа в шкаф
+            if (player.getPersistentData().contains("closet_exit_x")) {
+                double rx = player.getPersistentData().getDouble("closet_exit_x");
+                double ry = player.getPersistentData().getDouble("closet_exit_y");
+                double rz = player.getPersistentData().getDouble("closet_exit_z");
+                player.teleportTo(rx, ry, rz);
+            } else {
+                player.teleportTo(worldPosition.getX() + 0.5, worldPosition.getY(), worldPosition.getZ() - 1.0);
+            }
+            
             trappedPlayerId = null;
             this.setChanged();
         }
@@ -155,8 +222,12 @@ public class MainCloset {
         public static void onPlayerTick(TickEvent.PlayerTickEvent event) {
             if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide) return;
             Player player = event.player;
+            
             if (player.getPersistentData().getBoolean("IsInCloset") && player.isShiftKeyDown() && player instanceof ServerPlayer serverPlayer) {
-                if (serverPlayer.level().getBlockEntity(serverPlayer.blockPosition()) instanceof ClosetBlockEntity be) {
+                int[] cPos = player.getPersistentData().getIntArray("closet_pos");
+                BlockPos closetPos = (cPos.length == 3) ? new BlockPos(cPos[0], cPos[1], cPos[2]) : serverPlayer.blockPosition();
+                
+                if (serverPlayer.level().getBlockEntity(closetPos) instanceof ClosetBlockEntity be) {
                     be.exitCloset(serverPlayer);
                 } else { 
                     player.getPersistentData().putBoolean("IsInCloset", false); 
@@ -180,6 +251,8 @@ public class MainCloset {
             if (tag.hasUUID("TrappedPlayer")) trappedPlayerId = tag.getUUID("TrappedPlayer"); 
         }
     }
+
+
 
 
     // --- ЛОГИКА СКРЫТИЯ ОТ ДВЕЛЛЕРОВ И ДРУГИХ ВРАЖДЕБНЫХ МОБОВ ---
