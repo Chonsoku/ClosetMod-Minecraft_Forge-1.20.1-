@@ -388,14 +388,12 @@ public class MainCloset {
                 }
             }
         }
-
         @SubscribeEvent
         public static void onLeftClickDefense(PlayerInteractEvent.LeftClickBlock event) {
             if (event.getLevel().getBlockState(event.getPos()).is(MainCloset.CLOSET_BLOCK.get())) {
                 event.setCanceled(true);
             }
         }
-        
         @SubscribeEvent
         public static void onMobTick(LivingEvent.LivingTickEvent event) {
             if (event.getEntity().level().isClientSide) return;
@@ -412,6 +410,16 @@ public class MainCloset {
                         }
                         mob.getNavigation().stop();
                     }
+                }
+            }
+        }
+
+        // ТЫ КАК INVINCIBLE ВНУТРИ ШКАФА! (НЕУЯЗВИМОСТЬ)
+        @SubscribeEvent
+        public static void onPlayerHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+            if (event.getEntity() instanceof Player player) {
+                if (player.getPersistentData().getBoolean("IsInCloset")) {
+                    event.setCanceled(true);
                 }
             }
         }
