@@ -11,6 +11,7 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 import net.minecraft.world.level.block.state.BlockState;
 
+@SuppressWarnings({"null", "unused"})
 public class ClosetFeature extends Feature<NoneFeatureConfiguration> {
     
     public ClosetFeature(Codec<NoneFeatureConfiguration> codec) {
