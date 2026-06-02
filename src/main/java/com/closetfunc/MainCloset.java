@@ -41,6 +41,7 @@ import java.util.UUID;
 
 
 @Mod(MainCloset.MOD_ID)
+@SuppressWarnings({"removal", "null", "unused"})
 public class MainCloset {
     public static final String MOD_ID = "closet_mod";
     
