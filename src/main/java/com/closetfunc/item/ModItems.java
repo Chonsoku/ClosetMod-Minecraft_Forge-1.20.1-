@@ -20,6 +20,10 @@ public class ModItems {
 
     public static final RegistryObject<Item> CLOSET_BATIM_ITEM = ITEMS.register("closet_batim",
             () -> new BlockItem(ModBlocks.CLOSET_BATIM_BLOCK.get(), new Item.Properties()));
+    
+    public static final RegistryObject<Item> CLOSET_BALDI_ITEM = ITEMS.register("closet_baldi", 
+        () -> new BlockItem(ModBlocks.CLOSET_BALDI_BLOCK.get(), new Item.Properties()));
+
 
     public static void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {

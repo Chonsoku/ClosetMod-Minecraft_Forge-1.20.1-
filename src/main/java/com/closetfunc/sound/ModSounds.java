@@ -19,4 +19,13 @@ public class ModSounds {
 
     public static final RegistryObject<SoundEvent> BATIM_CLOSE = SOUNDS.register("batim_close",
             () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MainCloset.MOD_ID, "batim_close")));
+
+    public static final RegistryObject<SoundEvent> BALDI_SPAWN = SOUNDS.register("baldi_spawn",
+            () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MainCloset.MOD_ID, "baldi_spawn")));
+
+    public static final RegistryObject<SoundEvent> BALDI_OPEN = SOUNDS.register("baldi_open",
+            () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MainCloset.MOD_ID, "baldi_open")));
+
+    public static final RegistryObject<SoundEvent> BALDI_CLOSE = SOUNDS.register("baldi_close",
+            () -> SoundEvent.createVariableRangeEvent(new ResourceLocation(MainCloset.MOD_ID, "baldi_close")));
 }

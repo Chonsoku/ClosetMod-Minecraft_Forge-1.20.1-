@@ -2,5 +2,7 @@
   "block.closet_mod.closet": "Шкаф",
   "item.closet_mod.closet": "Шкаф",
   "block.closet_mod.closet_batim": "Станция Маленького Чуда (BatIM)",
-  "item.closet_mod.closet": "Станция Маленького Чуда (BatIM)"
+  "item.closet_mod.closet_batim": "Станция Маленького Чуда (BatIM)",
+  "block.closet_mod.closet_baldi": "Шкафчик (Baldi's Basics)",
+  "item.closet_mod.closet_baldi": "Шкафчик (Baldi's Basics)"
 }

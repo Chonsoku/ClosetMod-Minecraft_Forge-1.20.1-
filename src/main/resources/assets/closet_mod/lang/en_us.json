@@ -2,5 +2,7 @@
   "block.closet_mod.closet": "Closet",
   "item.closet_mod.closet": "Closet",
   "block.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
-  "item.closet_mod.closet": "Little Miracle Station (BatIM)"
+  "item.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
+  "block.closet_mod.closet_baldi": "Locker (Baldi's Basics)",
+  "item.closet_mod.closet_baldi": "Locker (Baldi's Basics)"
 }

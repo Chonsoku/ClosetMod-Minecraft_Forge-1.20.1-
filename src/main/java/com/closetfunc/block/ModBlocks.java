@@ -60,6 +60,14 @@ public class ModBlocks {
                 .noOcclusion()
                 .dynamicShape()));
 
+    public static final RegistryObject<Block> CLOSET_BALDI_BLOCK = BLOCKS.register("closet_baldi", 
+    () -> new ClosetBlock(BlockBehaviour.Properties.of()
+            .mapColor(MapColor.COLOR_RED)
+            .strength(-1.0F, 3600000.0F)
+            .sound(SoundType.METAL)
+            .noOcclusion()
+            .dynamicShape()));
+
     public static class ClosetBlock extends Block implements EntityBlock {
         public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
         public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -222,6 +230,7 @@ public class ModBlocks {
         public void tick(BlockState state, net.minecraft.server.level.ServerLevel level, BlockPos pos, RandomSource random) {
             if (state.getValue(OPEN)) {
                 level.setBlock(pos, state.setValue(OPEN, false), 3);
+
                 BlockPos otherPos = state.getValue(HALF) == DoubleBlockHalf.LOWER ? pos.above() : pos.below();
                 BlockState otherState = level.getBlockState(otherPos);
                 if (otherState.is(this)) {
@@ -229,9 +238,16 @@ public class ModBlocks {
                 }
 
                 boolean isBatim = state.is(ModBlocks.CLOSET_BATIM_BLOCK.get());
-                net.minecraft.sounds.SoundEvent closeSound = isBatim
-                    ? ModSounds.BATIM_CLOSE.get()
-                    : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE;
+                boolean isBaldi = state.is(ModBlocks.CLOSET_BALDI_BLOCK.get());
+
+                net.minecraft.sounds.SoundEvent closeSound;
+                if (isBatim) {
+                    closeSound = ModSounds.BATIM_CLOSE.get();
+                } else if (isBaldi) {
+                    closeSound = ModSounds.BALDI_CLOSE.get();
+                } else {
+                    closeSound = net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE;
+                }
 
                 if (closeSound != null) {
                     level.playSound(null, pos, closeSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);

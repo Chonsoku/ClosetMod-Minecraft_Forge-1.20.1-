@@ -23,7 +23,8 @@ public class ModBlockEntities {
     public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be",
         () -> BlockEntityType.Builder.of(ClosetBlockEntity::new,
                 ModBlocks.CLOSET_BLOCK.get(),
-                ModBlocks.CLOSET_BATIM_BLOCK.get()
+                ModBlocks.CLOSET_BATIM_BLOCK.get(),
+                ModBlocks.CLOSET_BALDI_BLOCK.get()
         ).build(null));
 
     // КЛАСС СУЩНОСТИ БЛОКА
@@ -53,11 +54,20 @@ public class ModBlockEntities {
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
                 boolean isBatim = this.getBlockState().is(ModBlocks.CLOSET_BATIM_BLOCK.get());
-                net.minecraft.sounds.SoundEvent openSound = isBatim ? ModSounds.BATIM_OPEN.get() : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
-
+                boolean isBaldi = this.getBlockState().is(ModBlocks.CLOSET_BALDI_BLOCK.get());
+                
+                net.minecraft.sounds.SoundEvent openSound;
+                if (isBatim) {
+                    openSound = ModSounds.BATIM_OPEN.get();
+                } else if (isBaldi) {
+                    openSound = ModSounds.BALDI_OPEN.get();
+                } else {
+                    openSound = net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
+                }
+                
                 currentLevel.playSound(player, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                 currentLevel.playSound(null, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
-
+                
                 currentLevel.scheduleTick(worldPosition, this.getBlockState().getBlock(), 25);
             }
         }
@@ -79,20 +89,31 @@ public class ModBlockEntities {
                 BlockState state = currentLevel.getBlockState(worldPosition);
                 if (state.hasProperty(com.closetfunc.block.ModBlocks.ClosetBlock.OPEN)) {
                     currentLevel.setBlock(worldPosition, state.setValue(com.closetfunc.block.ModBlocks.ClosetBlock.OPEN, true), 3);
+                    
                     BlockPos topPos = worldPosition.above();
                     BlockState topState = currentLevel.getBlockState(topPos);
+
                     if (topState.is(state.getBlock())) {
                         currentLevel.setBlock(topPos, topState.setValue(com.closetfunc.block.ModBlocks.ClosetBlock.OPEN, true), 3);
                     }
 
                     boolean isBatim = state.is(ModBlocks.CLOSET_BATIM_BLOCK.get());
-                    net.minecraft.sounds.SoundEvent openSound = isBatim ? ModSounds.BATIM_OPEN.get() : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
+                    boolean isBaldi = state.is(ModBlocks.CLOSET_BALDI_BLOCK.get());
+                    
+                    net.minecraft.sounds.SoundEvent openSound;
+                    if (isBatim) {
+                        openSound = ModSounds.BATIM_OPEN.get();
+                    } else if (isBaldi) {
+                        openSound = ModSounds.BALDI_OPEN.get();
+                    } else {
+                        openSound = net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
+                    }
 
                     currentLevel.playSound(player, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                     currentLevel.playSound(null, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
-
                     currentLevel.scheduleTick(worldPosition, state.getBlock(), 25);
                 }
+
 
                 if (state.hasProperty(com.closetfunc.block.ModBlocks.ClosetBlock.FACING)) {
                     net.minecraft.core.Direction facing = state.getValue(com.closetfunc.block.ModBlocks.ClosetBlock.FACING);
