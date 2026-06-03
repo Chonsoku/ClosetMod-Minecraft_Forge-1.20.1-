@@ -93,8 +93,8 @@ public class ModEvents {
                     closetBe.getPersistentData().putBoolean("CheckedForBatim", true);
                     closetBe.setChanged(); 
 
-                    // Шанс на появление шкафа из BatIM: 14%
-                    if (level.random.nextFloat() > 0.14F) {
+                    // Шанс на появление пасхальных шкафов: 5%
+                    if (level.random.nextFloat() > 0.05F) {
                         continue; 
                     }
 
