@@ -1,5 +1,9 @@
 package com.closetfunc;
 
+import java.util.UUID;
+
+import org.jetbrains.annotations.Nullable;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -15,6 +19,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -36,8 +41,6 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
-import org.jetbrains.annotations.Nullable;
-import java.util.UUID;
 
 
 @Mod(MainCloset.MOD_ID)
@@ -53,19 +56,44 @@ public class MainCloset {
     public static final DeferredRegister<net.minecraft.world.level.levelgen.feature.Feature<?>> FEATURES = 
         DeferredRegister.create(ForgeRegistries.FEATURES, MOD_ID);
 
+    public static final DeferredRegister<net.minecraft.sounds.SoundEvent> SOUNDS = 
+    DeferredRegister.create(ForgeRegistries.SOUND_EVENTS, MOD_ID);
 
+    public static final RegistryObject<net.minecraft.sounds.SoundEvent> BATIM_SPAWN = SOUNDS.register("batim_spawn", 
+        () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(new net.minecraft.resources.ResourceLocation(MOD_ID, "batim_spawn")));
+    public static final RegistryObject<net.minecraft.sounds.SoundEvent> BATIM_OPEN = SOUNDS.register("batim_open", 
+        () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(new net.minecraft.resources.ResourceLocation(MOD_ID, "batim_open")));
+    public static final RegistryObject<net.minecraft.sounds.SoundEvent> BATIM_CLOSE = SOUNDS.register("batim_close", 
+        () -> net.minecraft.sounds.SoundEvent.createVariableRangeEvent(new net.minecraft.resources.ResourceLocation(MOD_ID, "batim_close")));
+
+
+    // ОСНОВНОЙ шкаф
     public static final RegistryObject<Block> CLOSET_BLOCK = BLOCKS.register("closet", 
         () -> new ClosetBlock(BlockBehaviour.Properties.of()
                 .mapColor(MapColor.WOOD)
                 .strength(-1.0F, 3600000.0F)
+                .sound(SoundType.WOOD)
                 .noOcclusion()
                 .dynamicShape()));
     public static final RegistryObject<Item> CLOSET_ITEM = ITEMS.register("closet", () -> new BlockItem(CLOSET_BLOCK.get(), new Item.Properties()));
+
+    // ПАСХАЛЬНЫЙ: шкаф из "Bendy and the Ink Machine"
+    public static final RegistryObject<Block> CLOSET_BATIM_BLOCK = BLOCKS.register("closet_batim", 
+        () -> new ClosetBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.COLOR_BLACK)
+                .strength(-1.0F, 3600000.0F)
+                .sound(SoundType.WOOD)
+                .noOcclusion()
+                .dynamicShape()));
+    public static final RegistryObject<Item> CLOSET_BATIM_ITEM = ITEMS.register("closet_batim", () -> new BlockItem(CLOSET_BATIM_BLOCK.get(), new Item.Properties()));
+    
+
     public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be", 
-            () -> BlockEntityType.Builder.of(ClosetBlockEntity::new, CLOSET_BLOCK.get()).build(com.mojang.datafixers.DSL.remainderType()));
+        () -> BlockEntityType.Builder.of(ClosetBlockEntity::new, CLOSET_BLOCK.get(), CLOSET_BATIM_BLOCK.get()).build(com.mojang.datafixers.DSL.remainderType()));
     public static final RegistryObject<net.minecraft.world.level.levelgen.feature.Feature<net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration>> CLOSET_FEATURE = 
         FEATURES.register("closet_feature", () -> new ClosetFeature(net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration.CODEC));
-            
+
+
 
     public MainCloset() {
         var bus = FMLJavaModLoadingContext.get().getModEventBus();
@@ -73,6 +101,7 @@ public class MainCloset {
         ITEMS.register(bus);
         BLOCK_ENTITIES.register(bus);
         FEATURES.register(bus);
+        SOUNDS.register(bus);
 
         MinecraftForge.EVENT_BUS.register(MainCloset.class);
         MinecraftForge.EVENT_BUS.register(ClosetBlockEntity.class);
@@ -217,29 +246,30 @@ public class MainCloset {
         
         @Nullable @Override 
         public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level lvl, BlockState st, BlockEntityType<T> type) {
-            if (st.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) return null;
-            if (type == CLOSET_BE.get()) {
-                return (level, pos, state, blockEntity) -> {
-                    if (level.isClientSide || !(blockEntity instanceof ClosetBlockEntity be) || be.trappedPlayerId == null) return;
-                    
-                    ServerPlayer player = (ServerPlayer) level.getPlayerByUUID(be.trappedPlayerId);
-                    if (player == null) { 
-                        be.trappedPlayerId = null; 
-                        level.setBlock(pos, state.setValue(OPEN, false), 3);
-                        BlockPos topPos = pos.above();
-                        BlockState topState = level.getBlockState(topPos);
-                        if (topState.is(this)) level.setBlock(topPos, topState.setValue(OPEN, false), 3);
-                        be.setChanged(); 
-                        return; 
-                    }
-                    
-                    if (player.distanceToSqr(pos.getX() + 0.5, player.getY(), pos.getZ() + 0.5) > 0.5) {
-                        player.teleportTo(pos.getX() + 0.5, pos.getY() + 0.01, pos.getZ() + 0.5);
-                    }
-                };
-            }
-            return null;
+        if (st.getValue(HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER) return null;
+        if (type == CLOSET_BE.get()) {
+            return (level, pos, state, blockEntity) -> {
+                if (level.isClientSide || !(blockEntity instanceof ClosetBlockEntity be) || be.trappedPlayerId == null) return;
+
+                ServerPlayer player = (ServerPlayer) level.getPlayerByUUID(be.trappedPlayerId);
+                if (player == null) { 
+                    be.trappedPlayerId = null; 
+                    level.setBlock(pos, state.setValue(OPEN, false), 3);
+                    BlockPos topPos = pos.above();
+                    BlockState topState = level.getBlockState(topPos);
+                    if (topState.is(state.getBlock())) level.setBlock(topPos, topState.setValue(OPEN, false), 3);
+                    be.setChanged(); 
+                    return; 
+                }
+
+                if (player.distanceToSqr(pos.getX() + 0.5, player.getY(), pos.getZ() + 0.5) > 0.5) {
+                    player.teleportTo(pos.getX() + 0.5, pos.getY() + 0.01, pos.getZ() + 0.5);
+                }
+            };
         }
+        return null;
+        }
+
 
         @Override
         public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean isMoving) {
@@ -262,9 +292,13 @@ public class MainCloset {
                     level.setBlock(otherPos, otherState.setValue(OPEN, false), 3);
                 }
 
-                level.playSound(null, pos, 
-                    net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
-                    net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                boolean isBatim = state.is(MainCloset.CLOSET_BATIM_BLOCK.get());
+                net.minecraft.sounds.SoundEvent closeSound = isBatim 
+                    ? MainCloset.BATIM_CLOSE.get()
+                    : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE;
+                if (closeSound != null) {
+                    level.playSound(null, pos, closeSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                }
             }
         }
     }
@@ -292,10 +326,11 @@ public class MainCloset {
             player.hurtMarked = true;
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
-                currentLevel.playSound(null, worldPosition, 
-                    net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN, 
-                    net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
-                currentLevel.scheduleTick(worldPosition, MainCloset.CLOSET_BLOCK.get(), 25);
+                boolean isBatim = this.getBlockState().is(MainCloset.CLOSET_BATIM_BLOCK.get());
+                net.minecraft.sounds.SoundEvent openSound = isBatim ? MainCloset.BATIM_OPEN.get() : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
+                currentLevel.playSound(player, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                currentLevel.playSound(null, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                currentLevel.scheduleTick(worldPosition, this.getBlockState().getBlock(), 25);
             }
         }
 
@@ -303,9 +338,8 @@ public class MainCloset {
             player.getPersistentData().putBoolean("IsInCloset", false);
             player.setNoGravity(false);    
             player.getPersistentData().putLong("ClosetCooldownUntil", player.level().getGameTime() + 200L);
-            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false
-            ));
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false));
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SPEED, 180, 2, false, false));
             Level currentLevel = this.getLevel();
             if (currentLevel != null) {
                 BlockState state = currentLevel.getBlockState(worldPosition);
@@ -316,9 +350,12 @@ public class MainCloset {
                     if (topState.is(state.getBlock())) {
                         currentLevel.setBlock(topPos, topState.setValue(ClosetBlock.OPEN, true), 3);
                     }
-                    currentLevel.playSound(null, worldPosition, 
-                        net.minecraft.sounds.SoundEvents.WOODEN_DOOR_CLOSE, 
-                        net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    
+                    boolean isBatim = state.is(MainCloset.CLOSET_BATIM_BLOCK.get());
+
+                    net.minecraft.sounds.SoundEvent openSound = isBatim ? MainCloset.BATIM_OPEN.get() : net.minecraft.sounds.SoundEvents.WOODEN_DOOR_OPEN;
+                    currentLevel.playSound(player, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    currentLevel.playSound(null, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                     currentLevel.scheduleTick(worldPosition, state.getBlock(), 25);
                 }
                 if (state.hasProperty(ClosetBlock.FACING)) {
@@ -355,9 +392,7 @@ public class MainCloset {
                 } else { 
                     player.getPersistentData().putBoolean("IsInCloset", false); 
                     player.setNoGravity(false); 
-                    serverPlayer.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                        net.minecraft.world.effect.MobEffects.DARKNESS, 200, 0, false, false
-                    ));
+                    serverPlayer.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DARKNESS, 150, 0, false, false));
                 }
             }
         }
@@ -389,12 +424,15 @@ public class MainCloset {
                 }
             }
         }
+
         @SubscribeEvent
         public static void onLeftClickDefense(PlayerInteractEvent.LeftClickBlock event) {
-            if (event.getLevel().getBlockState(event.getPos()).is(MainCloset.CLOSET_BLOCK.get())) {
+            BlockState state = event.getLevel().getBlockState(event.getPos());
+            if (state.is(MainCloset.CLOSET_BLOCK.get()) || state.is(MainCloset.CLOSET_BATIM_BLOCK.get())) {
                 event.setCanceled(true);
             }
         }
+        
         @SubscribeEvent
         public static void onMobTick(LivingEvent.LivingTickEvent event) {
             if (event.getEntity().level().isClientSide) return;
@@ -413,6 +451,77 @@ public class MainCloset {
                     }
                 }
             }
+        }
+
+        @SubscribeEvent
+        public static void onPlayerProximityCheck(TickEvent.PlayerTickEvent event) {
+            if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide || event.player.tickCount % 20 != 0) return;
+            ServerPlayer player = (ServerPlayer) event.player;
+            if (player.getPersistentData().getBoolean("IsInCloset")) return;
+            net.minecraft.server.level.ServerLevel level = player.serverLevel();
+            BlockPos playerPos = player.blockPosition();
+            
+            int radius = 6; 
+            for (BlockPos targetPos : BlockPos.betweenClosed(playerPos.offset(-radius, -2, -radius), playerPos.offset(radius, 2, radius))) {
+                BlockPos immutablePos = targetPos.immutable();
+                BlockState state = level.getBlockState(immutablePos);
+
+                if (state.is(MainCloset.CLOSET_BLOCK.get()) && state.getValue(MainCloset.ClosetBlock.HALF) == net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER) {
+
+                    BlockEntity be = level.getBlockEntity(immutablePos);
+                    if (be instanceof ClosetBlockEntity closetBe) {
+                        if (closetBe.trappedPlayerId != null) continue;
+                        
+                        if (closetBe.getPersistentData().getBoolean("CheckedForBatim")) {
+                            continue;
+                        }
+
+                        closetBe.getPersistentData().putBoolean("CheckedForBatim", true);
+                        closetBe.setChanged();
+                        
+                        // Шанс на появления batim-шкафа: 4.14%
+                        if (level.random.nextFloat() > 0.0414F) {
+                            continue; 
+                        }
+                        net.minecraft.core.Direction currentFacing = state.getValue(MainCloset.ClosetBlock.FACING);
+
+                        level.removeBlockEntity(immutablePos);
+                        level.setBlock(immutablePos, net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+                        level.setBlock(immutablePos.above(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), 3);
+
+                        BlockState newLowerState = MainCloset.CLOSET_BATIM_BLOCK.get().defaultBlockState()
+                                .setValue(MainCloset.ClosetBlock.FACING, currentFacing)
+                                .setValue(MainCloset.ClosetBlock.OPEN, false)
+                                .setValue(MainCloset.ClosetBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.LOWER);
+                                
+                        BlockState newTopState = MainCloset.CLOSET_BATIM_BLOCK.get().defaultBlockState()
+                                .setValue(MainCloset.ClosetBlock.FACING, currentFacing)
+                                .setValue(MainCloset.ClosetBlock.OPEN, false)
+                                .setValue(MainCloset.ClosetBlock.HALF, net.minecraft.world.level.block.state.properties.DoubleBlockHalf.UPPER);
+
+                        level.setBlock(immutablePos, newLowerState, 3);
+                        level.setBlock(immutablePos.above(), newTopState, 3);
+                        
+                        level.getChunkSource().blockChanged(immutablePos);
+                        level.getChunkSource().blockChanged(immutablePos.above());
+
+                        level.playSound(null, immutablePos.getX() + 0.5D, immutablePos.getY() + 0.5D, immutablePos.getZ() + 0.5D, 
+                                MainCloset.BATIM_SPAWN.get(), net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+
+                        applyScreamerEffects(player, level);
+                        
+                        break;
+                    }
+                }
+            }
+        }
+
+        private static void applyScreamerEffects(ServerPlayer player, net.minecraft.world.level.Level level) {
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.DARKNESS, 60, 1, false, false));
+
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.BLINDNESS, 60, 0, false, false));
+            
+            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(net.minecraft.world.effect.MobEffects.MOVEMENT_SLOWDOWN, 60, 3, false, false));
         }
 
         // ТЫ КАК INVINCIBLE ВНУТРИ ШКАФА! (НЕУЯЗВИМОСТЬ)
