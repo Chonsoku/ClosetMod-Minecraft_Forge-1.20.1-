@@ -1,0 +1,20 @@
+{
+  "batim_spawn": {
+    "category": "block",
+    "sounds": [
+      "closet_mod:batim_bendyscreamer"
+    ]
+  },
+  "batim_open": {
+    "category": "block",
+    "sounds": [
+      "closet_mod:batim_closet_enter"
+    ]
+  },
+  "batim_close": {
+    "category": "block",
+    "sounds": [
+      "closet_mod:batim_closet_exit"
+    ]
+  }
+}

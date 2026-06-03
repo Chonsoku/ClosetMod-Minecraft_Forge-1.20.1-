@@ -1,7 +1,7 @@
 {
 	"credit": "Made with Blockbench",
-	"render_type": "minecraft:cutout",
 	"parent": "minecraft:block/cube",
+	"render_type": "minecraft:cutout",
 	"texture_size": [64, 64],
 	"textures": {
 		"1": "closet_mod:block/texture_right",
@@ -81,6 +81,7 @@
 		{
 			"from": [17, 0, -9],
 			"to": [18, 31, 0],
+			"rotation": {"angle": 0, "axis": "y", "origin": [17, 0, 0]},
 			"faces": {
 				"north": {"uv": [9.75, 0, 10, 14.75], "texture": "#6"},
 				"east": {"uv": [0, 0, 4.25, 14.75], "texture": "#6"},

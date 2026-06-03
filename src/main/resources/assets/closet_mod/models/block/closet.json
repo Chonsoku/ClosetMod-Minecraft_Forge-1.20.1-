@@ -1,7 +1,7 @@
 {
 	"credit": "Made with Blockbench",
-	"render_type": "minecraft:cutout",
 	"parent": "minecraft:block/cube",
+	"render_type": "minecraft:cutout",
 	"texture_size": [64, 64],
 	"textures": {
 		"1": "closet_mod:block/texture_right",
