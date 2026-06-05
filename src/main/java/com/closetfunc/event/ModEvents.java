@@ -158,14 +158,16 @@ public class ModEvents {
         }
         
         // Таймер пасхалки на "Death Note" X.X
-        if (player.getPersistentData().contains("DeathNoteTicks")) {
-            int remainingTicks = player.getPersistentData().getInt("DeathNoteTicks") - 20;
-            
-            if (remainingTicks <= 0) {
-                player.getPersistentData().remove("DeathNoteTicks");
-                
+        long currentGameTime = level.getGameTime();
+
+        if (player.getPersistentData().contains("DeathNoteTimeTarget")) {
+            long deathTimeTarget = player.getPersistentData().getLong("DeathNoteTimeTarget");
+
+            if (currentGameTime >= deathTimeTarget) {
+                player.getPersistentData().remove("DeathNoteTimeTarget");
+
                 net.minecraft.world.damagesource.DamageSource heartAttackSource = 
-                new net.minecraft.world.damagesource.DamageSource(
+                    new net.minecraft.world.damagesource.DamageSource(
                         level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
                             .getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FELL_OUT_OF_WORLD)
                     ) {
