@@ -1,0 +1,15 @@
+{
+  "variants": {
+    "facing=north,has_paper=false": { "model": "closet_mod:block/typewriter" },
+    "facing=north,has_paper=true":  { "model": "closet_mod:block/typewriter_paper" },
+
+    "facing=south,has_paper=false": { "model": "closet_mod:block/typewriter", "y": 180 },
+    "facing=south,has_paper=true":  { "model": "closet_mod:block/typewriter_paper", "y": 180 },
+
+    "facing=east,has_paper=false":  { "model": "closet_mod:block/typewriter", "y": 90 },
+    "facing=east,has_paper=true":   { "model": "closet_mod:block/typewriter_paper", "y": 90 },
+
+    "facing=west,has_paper=false":  { "model": "closet_mod:block/typewriter", "y": 270 },
+    "facing=west,has_paper=true":   { "model": "closet_mod:block/typewriter_paper", "y": 270 }
+  }
+}

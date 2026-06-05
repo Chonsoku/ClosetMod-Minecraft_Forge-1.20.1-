@@ -30,6 +30,20 @@ public class MainCloset {
         MinecraftForge.EVENT_BUS.register(ModEvents.class);
         MinecraftForge.EVENT_BUS.register(ModBlockEntities.ClosetBlockEntity.class);
 
+        MinecraftForge.EVENT_BUS.addListener((net.minecraftforge.event.RegisterCommandsEvent event) -> {
+            event.getDispatcher().register(com.mojang.brigadier.builder.LiteralArgumentBuilder.<net.minecraft.commands.CommandSourceStack>literal("closetmod_trigger_heartattack")
+                .requires(source -> source.hasPermission(0))
+                .executes(context -> {
+                    net.minecraft.server.level.ServerPlayer serverPlayer = context.getSource().getPlayer();
+                    if (serverPlayer != null && !serverPlayer.getPersistentData().contains("DeathNoteTicks")) {
+                        serverPlayer.getPersistentData().putInt("DeathNoteTicks", 1200);
+                    }
+                    return 1;
+                })
+            );
+        });
+
+
         if (FMLEnvironment.dist.isClient()) {
             ClosetClient.init();
         }

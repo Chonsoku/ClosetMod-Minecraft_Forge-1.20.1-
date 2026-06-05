@@ -6,6 +6,7 @@ import com.closetfunc.sound.ModSounds;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -17,15 +18,16 @@ import java.util.UUID;
 
 @SuppressWarnings("null")
 public class ModBlockEntities {
-    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
+    public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES = 
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, MainCloset.MOD_ID);
 
-    public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be",
-        () -> BlockEntityType.Builder.of(ClosetBlockEntity::new,
-                ModBlocks.CLOSET_BLOCK.get(),
-                ModBlocks.CLOSET_BATIM_BLOCK.get(),
-                ModBlocks.CLOSET_BALDI_BLOCK.get()
-        ).build(null));
+    public static final RegistryObject<BlockEntityType<ClosetBlockEntity>> CLOSET_BE = BLOCK_ENTITIES.register("closet_be", 
+        () -> BlockEntityType.Builder.of(ClosetBlockEntity::new, net.minecraft.world.level.block.Blocks.AIR).build(null));
+
+    public static final RegistryObject<BlockEntityType<TypewriterBlockEntity>> TYPEWRITER_BE = BLOCK_ENTITIES.register("typewriter_be", 
+        () -> BlockEntityType.Builder.of(TypewriterBlockEntity::new, net.minecraft.world.level.block.Blocks.AIR).build(null));
+
+
 
     // КЛАСС СУЩНОСТИ БЛОКА
     public static class ClosetBlockEntity extends BlockEntity {
@@ -69,6 +71,37 @@ public class ModBlockEntities {
                 currentLevel.playSound(null, worldPosition, openSound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
                 
                 currentLevel.scheduleTick(worldPosition, this.getBlockState().getBlock(), 25);
+            }
+
+            // --- ЛОГИКА СЧЕТЧИКА И ВЫДАЧИ ПЕЧАТНОЙ МАШИНКИ ---
+            if (!player.getPersistentData().getBoolean("HasReceivedTypewriter")) {
+                int currentUses = player.getPersistentData().getInt("ClosetUses") + 1;
+                player.getPersistentData().putInt("ClosetUses", currentUses);
+
+                boolean shouldGive = false;
+
+                // Если это 10-й заход в шкаф, то игроку выдаётся машинка ГАРАНТИРОВАННО
+                if (currentUses >= 10) {
+                    shouldGive = true;
+                } 
+                // Если это заход от 5 до 9, то шанс на выпадение машинки 25% при каждом заходе
+                else if (currentUses >= 5) {
+                    if (player.level().random.nextFloat() < 0.25F) {
+                        shouldGive = true;
+                    }
+                }
+
+                // Физическая выдача предмета
+                if (shouldGive) {
+                    player.getPersistentData().putBoolean("HasReceivedTypewriter", true);
+                    net.minecraft.world.item.ItemStack typewriterStack = new net.minecraft.world.item.ItemStack(com.closetfunc.item.ModItems.TYPEWRITER_ITEM.get());
+                    
+                    // Ложим игроку в инвентарь. Если инвентарь забит, то выкидываем на землю рядом со шкафчиком
+                    if (!player.getInventory().add(typewriterStack)) {
+                        player.drop(typewriterStack, false);
+                    }
+                    currentLevel.playSound(player, worldPosition, net.minecraft.sounds.SoundEvents.ITEM_PICKUP, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                }
             }
         }
 
@@ -155,6 +188,11 @@ public class ModBlockEntities {
                 }
             }
         }
+        
+        public boolean isValidBlockState(BlockState state) {
+            return state.is(ModBlocks.CLOSET_BLOCK.get()) || state.is(ModBlocks.CLOSET_BATIM_BLOCK.get()) || state.is(ModBlocks.CLOSET_BALDI_BLOCK.get());
+        }
+
 
         @Override
         protected void saveAdditional(CompoundTag tag) {
@@ -166,6 +204,75 @@ public class ModBlockEntities {
         public void load(CompoundTag tag) {
             super.load(tag);
             if (tag.hasUUID("TrappedPlayer")) trappedPlayerId = tag.getUUID("TrappedPlayer");
+        }
+
+        @org.jetbrains.annotations.Nullable
+        @Override
+        public net.minecraft.network.protocol.Packet<net.minecraft.network.protocol.game.ClientGamePacketListener> getUpdatePacket() {
+            return net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket.create(this);
+        }
+
+        @Override
+        public CompoundTag getUpdateTag() {
+            CompoundTag tag = new CompoundTag();
+            this.saveAdditional(tag);
+            return tag;
+        }
+
+        @Override
+        public void onDataPacket(net.minecraft.network.Connection net, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
+            this.load(pkt.getTag() != null ? pkt.getTag() : new CompoundTag());
+        }
+    }
+
+    // --- СУЩНОСТЬ БЛОКА ПЕЧАТНОЙ МАШИНКИ ---
+    public static class TypewriterBlockEntity extends BlockEntity {
+        public int insertedPaperCount = 0;
+        public String[] pagesText = new String[128];
+
+        public TypewriterBlockEntity(BlockPos pos, BlockState state) {
+            super(TYPEWRITER_BE.get(), pos, state);
+            for (int i = 0; i < pagesText.length; i++) {
+                pagesText[i] = "";
+            }
+        }
+
+        public boolean isValidBlockState(BlockState state) {
+            return state.is(ModBlocks.TYPEWRITER_BLOCK.get());
+        }
+
+        @Override
+        protected void saveAdditional(CompoundTag tag) {
+            super.saveAdditional(tag);
+            tag.putInt("InsertedPaperCount", this.insertedPaperCount);
+            
+            ListTag textList = new ListTag();
+            for (String text : pagesText) {
+                textList.add(net.minecraft.nbt.StringTag.valueOf(text != null ? text : ""));
+            }
+            tag.put("PagesText", textList);
+        }
+
+        @Override
+        public void load(CompoundTag tag) {
+            super.load(tag);
+            this.insertedPaperCount = tag.getInt("InsertedPaperCount");
+            
+            if (tag.contains("PagesText", 9)) {
+                ListTag textList = tag.getList("PagesText", 8);
+                for (int i = 0; i < pagesText.length && i < textList.size(); i++) {
+                    pagesText[i] = textList.getString(i);
+                }
+            }
+        }
+
+        // Метод для обновления текста с клиента
+        public void updateTextFromServer(String[] newText) {
+            if (newText == null) return;
+            for (int i = 0; i < pagesText.length && i < newText.length; i++) {
+                this.pagesText[i] = newText[i];
+            }
+            this.setChanged();
         }
 
         @org.jetbrains.annotations.Nullable

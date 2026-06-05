@@ -3,6 +3,7 @@ package com.closetfunc.event;
 import com.closetfunc.block.ModBlocks;
 import com.closetfunc.block_entity.ModBlockEntities;
 import com.closetfunc.sound.ModSounds;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.Mob;
@@ -33,7 +34,7 @@ public class ModEvents {
     @SubscribeEvent
     public static void onLeftClickDefense(PlayerInteractEvent.LeftClickBlock event) {
         BlockState state = event.getLevel().getBlockState(event.getPos());
-        if (state.is(ModBlocks.CLOSET_BLOCK.get()) || state.is(ModBlocks.CLOSET_BATIM_BLOCK.get())) {
+        if (state.is(ModBlocks.CLOSET_BLOCK.get()) || state.is(ModBlocks.CLOSET_BATIM_BLOCK.get()) || state.is(ModBlocks.CLOSET_BALDI_BLOCK.get())) {
             event.setCanceled(true);
         }
     }
@@ -58,8 +59,10 @@ public class ModEvents {
         }
     }
 
+
+    // ТЫ В ШКАФУ, КАК НЕУЯЗВИМЫЙ!!! ^.^
     @SubscribeEvent
-    public static void onPlayerHurt(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
+    public static void InvinciblePlayer(net.minecraftforge.event.entity.living.LivingHurtEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (player.getPersistentData().getBoolean("IsInCloset")) {
                 event.setCanceled(true);
@@ -153,8 +156,31 @@ public class ModEvents {
                 }
             }
         }
-    }
+        
+        // Таймер пасхалки на "Death Note" X.X
+        if (player.getPersistentData().contains("DeathNoteTicks")) {
+            int remainingTicks = player.getPersistentData().getInt("DeathNoteTicks") - 20;
+            
+            if (remainingTicks <= 0) {
+                player.getPersistentData().remove("DeathNoteTicks");
+                
+                net.minecraft.world.damagesource.DamageSource heartAttackSource = 
+                new net.minecraft.world.damagesource.DamageSource(
+                        level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                            .getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FELL_OUT_OF_WORLD)
+                    ) {
+                        @Override
+                        public net.minecraft.network.chat.Component getLocalizedDeathMessage(net.minecraft.world.entity.LivingEntity entity) {
+                            return net.minecraft.network.chat.Component.translatable("death.attack.heart_attack", entity.getDisplayName());
+                        }
+                    };
 
+                player.hurt(heartAttackSource, Float.MAX_VALUE);
+            }
+        }
+    }
+    
+    @SuppressWarnings("unused")
     private static void applyScreamerEffects(ServerPlayer player, net.minecraft.world.level.Level level, int duration) {
         player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
             net.minecraft.world.effect.MobEffects.DARKNESS, duration, 1, false, false

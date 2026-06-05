@@ -24,10 +24,14 @@ public class ModItems {
     public static final RegistryObject<Item> CLOSET_BALDI_ITEM = ITEMS.register("closet_baldi", 
         () -> new BlockItem(ModBlocks.CLOSET_BALDI_BLOCK.get(), new Item.Properties()));
 
+    public static final RegistryObject<Item> TYPEWRITER_ITEM = ITEMS.register("typewriter", 
+            () -> new BlockItem(ModBlocks.TYPEWRITER_BLOCK.get(), new Item.Properties()));
+
 
     public static void addCreative(BuildCreativeModeTabContentsEvent event) {
         if (event.getTabKey() == CreativeModeTabs.FUNCTIONAL_BLOCKS) {
             event.accept(CLOSET_ITEM.get());
+            event.accept(TYPEWRITER_ITEM.get());
         }
     }
 }

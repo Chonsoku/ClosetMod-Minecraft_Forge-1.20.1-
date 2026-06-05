@@ -1,8 +1,11 @@
 package com.closetfunc.block;
 
+import org.jetbrains.annotations.Nullable;
+
 import com.closetfunc.MainCloset;
 import com.closetfunc.block_entity.ModBlockEntities;
 import com.closetfunc.sound.ModSounds;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerPlayer;
@@ -37,14 +40,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
-import org.jetbrains.annotations.Nullable;
 
 @SuppressWarnings("null")
 public class ModBlocks {
-    public static final DeferredRegister<Block> BLOCKS =
+    public static final DeferredRegister<Block> BLOCKS = 
             DeferredRegister.create(ForgeRegistries.BLOCKS, MainCloset.MOD_ID);
 
-    public static final RegistryObject<Block> CLOSET_BLOCK = BLOCKS.register("closet",
+    public static final RegistryObject<Block> CLOSET_BLOCK = BLOCKS.register("closet", 
         () -> new ClosetBlock(BlockBehaviour.Properties.of()
                 .mapColor(MapColor.WOOD)
                 .strength(-1.0F, 3600000.0F)
@@ -52,7 +54,7 @@ public class ModBlocks {
                 .noOcclusion()
                 .dynamicShape()));
 
-    public static final RegistryObject<Block> CLOSET_BATIM_BLOCK = BLOCKS.register("closet_batim",
+    public static final RegistryObject<Block> CLOSET_BATIM_BLOCK = BLOCKS.register("closet_batim", 
         () -> new ClosetBlock(BlockBehaviour.Properties.of()
                 .mapColor(MapColor.COLOR_BLACK)
                 .strength(-1.0F, 3600000.0F)
@@ -61,13 +63,22 @@ public class ModBlocks {
                 .dynamicShape()));
 
     public static final RegistryObject<Block> CLOSET_BALDI_BLOCK = BLOCKS.register("closet_baldi", 
-    () -> new ClosetBlock(BlockBehaviour.Properties.of()
-            .mapColor(MapColor.COLOR_RED)
-            .strength(-1.0F, 3600000.0F)
-            .sound(SoundType.METAL)
-            .noOcclusion()
-            .dynamicShape()));
+        () -> new ClosetBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.COLOR_RED)
+                .strength(-1.0F, 3600000.0F)
+                .sound(SoundType.METAL)
+                .noOcclusion()
+                .dynamicShape()));
 
+    public static final RegistryObject<Block> TYPEWRITER_BLOCK = BLOCKS.register("typewriter", 
+        () -> new TypewriterBlock(BlockBehaviour.Properties.of()
+                .mapColor(MapColor.METAL)
+                .strength(2.0F, 3.0F)
+                .sound(SoundType.METAL)
+                .noOcclusion()));
+
+
+    // Класс для шкафа
     public static class ClosetBlock extends Block implements EntityBlock {
         public static final BooleanProperty OPEN = BlockStateProperties.OPEN;
         public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
@@ -255,4 +266,130 @@ public class ModBlocks {
             }
         }
     }
+
+
+    // Класс для печатной машинки
+    public static class TypewriterBlock extends Block implements EntityBlock {
+        public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
+        public static final BooleanProperty HAS_PAPER = BooleanProperty.create("has_paper");
+        
+        private static final VoxelShape SHAPE = Block.box(2, 0, 2, 14, 7, 14);
+
+        public TypewriterBlock(Properties properties) {
+            super(properties);
+            this.registerDefaultState(this.stateDefinition.any()
+                    .setValue(FACING, Direction.NORTH)
+                    .setValue(HAS_PAPER, false));
+        }
+
+        @Override
+        public VoxelShape getShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
+            return SHAPE;
+        }
+
+        @Override
+        public BlockState getStateForPlacement(net.minecraft.world.item.context.BlockPlaceContext context) {
+            return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
+        }
+
+        @Override
+        public InteractionResult use(BlockState state, Level level, BlockPos pos, Player player, InteractionHand hand, BlockHitResult hit) {
+            if (hand == InteractionHand.OFF_HAND) {
+                return InteractionResult.PASS;
+            }
+
+            net.minecraft.world.item.ItemStack heldItem = player.getItemInHand(hand);
+            BlockEntity be = level.getBlockEntity(pos);
+            
+            if (!(be instanceof ModBlockEntities.TypewriterBlockEntity typewriterBe)) {
+                return InteractionResult.FAIL;
+            }
+
+            if (heldItem.is(net.minecraft.world.item.Items.PAPER)) {
+                if (!state.getValue(HAS_PAPER)) {
+                    if (!level.isClientSide) {
+                        level.setBlock(pos, state.setValue(HAS_PAPER, true), 3);
+                        typewriterBe.insertedPaperCount = heldItem.getCount();
+                        typewriterBe.setChanged();
+                        if (!player.getAbilities().instabuild) heldItem.setCount(0);
+                        level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                    }
+                    return InteractionResult.sidedSuccess(level.isClientSide);
+                } else {
+                    if (typewriterBe.insertedPaperCount < 64) {
+                        if (!level.isClientSide) {
+                            BlockState oldState = level.getBlockState(pos);
+                            if (!player.getAbilities().instabuild) {
+                                heldItem.shrink(1);
+                            }
+                            typewriterBe.insertedPaperCount = Math.min(typewriterBe.insertedPaperCount + 2, 64);
+                            typewriterBe.setChanged();
+                            level.sendBlockUpdated(pos, oldState, oldState, 3);
+                            level.playSound(null, pos, net.minecraft.sounds.SoundEvents.BOOK_PAGE_TURN, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.0F);
+                        }
+                        return InteractionResult.sidedSuccess(level.isClientSide);
+                    }
+                }
+            }
+
+            if (state.getValue(HAS_PAPER)) {
+                if (level.isClientSide) {
+                    com.closetfunc.client.ClosetClient.openCustomTypewriterScreen(pos, typewriterBe.insertedPaperCount);
+                }
+                return InteractionResult.SUCCESS;
+            }
+
+            if (!level.isClientSide) {
+                net.minecraft.network.chat.MutableComponent message = net.minecraft.network.chat.Component.translatable("chat.closet_mod.typewriter.need")
+                        .withStyle(net.minecraft.ChatFormatting.RED);
+                
+                message.append(net.minecraft.network.chat.Component.translatable("chat.closet_mod.typewriter.paper")
+                        .withStyle(net.minecraft.ChatFormatting.WHITE)
+                        .withStyle(net.minecraft.ChatFormatting.UNDERLINE));
+
+                message.append(net.minecraft.network.chat.Component.translatable("chat.closet_mod.typewriter.end")
+                        .withStyle(net.minecraft.ChatFormatting.RED));
+
+                player.sendSystemMessage(message);
+            }
+            return InteractionResult.sidedSuccess(level.isClientSide);
+        }
+
+        @Override
+        public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean isMoving) {
+            if (!state.is(newState.getBlock())) {
+                BlockEntity be = level.getBlockEntity(pos);
+                if (be instanceof ModBlockEntities.TypewriterBlockEntity typewriterBe) {
+                    int paperCount = typewriterBe.insertedPaperCount;
+                    
+                    if (paperCount > 0) {
+                        net.minecraft.world.item.ItemStack paperStack = new net.minecraft.world.item.ItemStack(net.minecraft.world.item.Items.PAPER, paperCount);
+                        net.minecraft.world.entity.item.ItemEntity itemEntity = new net.minecraft.world.entity.item.ItemEntity(
+                            level, pos.getX() + 0.5D, pos.getY() + 0.5D, pos.getZ() + 0.5D, paperStack
+                        );
+                        level.addFreshEntity(itemEntity);
+                    }
+                }
+                super.onRemove(state, level, pos, newState, isMoving);
+            }
+        }
+
+        @Override
+        public java.util.List<net.minecraft.world.item.ItemStack> getDrops(BlockState state, net.minecraft.world.level.storage.loot.LootParams.Builder builder) {
+            java.util.List<net.minecraft.world.item.ItemStack> drops = new java.util.ArrayList<>();
+            drops.add(new net.minecraft.world.item.ItemStack(com.closetfunc.item.ModItems.TYPEWRITER_ITEM.get()));
+            return drops;
+        }
+
+        @Override
+        public net.minecraft.world.level.block.entity.BlockEntity newBlockEntity(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state) {
+            return new com.closetfunc.block_entity.ModBlockEntities.TypewriterBlockEntity(pos, state);
+        }
+
+        @Override
+        protected void createBlockStateDefinition(net.minecraft.world.level.block.state.StateDefinition.Builder<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.state.BlockState> builder) {
+            builder.add(FACING, HAS_PAPER);
+        }
+    }
 }
+

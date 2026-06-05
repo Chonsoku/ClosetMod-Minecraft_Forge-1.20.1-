@@ -1,8 +1,18 @@
-{
+{ /// Названия блоков
   "block.closet_mod.closet": "Шкаф",
   "item.closet_mod.closet": "Шкаф",
   "block.closet_mod.closet_batim": "Станция Маленького Чуда (BatIM)",
   "item.closet_mod.closet_batim": "Станция Маленького Чуда (BatIM)",
   "block.closet_mod.closet_baldi": "Шкафчик (Baldi's Basics)",
-  "item.closet_mod.closet_baldi": "Шкафчик (Baldi's Basics)"
+  "item.closet_mod.closet_baldi": "Шкафчик (Baldi's Basics)",
+  "block.closet_mod.typewriter": "Печатная машинка",
+  "item.closet_mod.typewriter": "Печатная машинка",
+
+  /// Сообщения в чате
+  "chat.closet_mod.typewriter.need": "*Вам нужна ",
+  "chat.closet_mod.typewriter.paper": "бумага",
+  "chat.closet_mod.typewriter.end": " для использования печатной машинки...",
+
+  // Системные сообщения
+  "death.attack.heart_attack": "%1$s скончался от сердечного приступа..."
 }

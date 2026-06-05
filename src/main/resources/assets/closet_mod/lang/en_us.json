@@ -1,8 +1,18 @@
-{
+{ /// Names for blocks
   "block.closet_mod.closet": "Closet",
   "item.closet_mod.closet": "Closet",
   "block.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
   "item.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
   "block.closet_mod.closet_baldi": "Locker (Baldi's Basics)",
-  "item.closet_mod.closet_baldi": "Locker (Baldi's Basics)"
+  "item.closet_mod.closet_baldi": "Locker (Baldi's Basics)",
+  "block.closet_mod.typewriter": "Typewriter",
+  "item.closet_mod.typewriter": "Typewriter",
+
+  /// Messages to chat
+  "chat.closet_mod.typewriter.need": "*You need ",
+  "chat.closet_mod.typewriter.paper": "paper",
+  "chat.closet_mod.typewriter.end": " to use the typewriter...",
+
+  /// System messages
+  "death.attack.heart_attack": "%1$s died of a heart attack..."
 }
