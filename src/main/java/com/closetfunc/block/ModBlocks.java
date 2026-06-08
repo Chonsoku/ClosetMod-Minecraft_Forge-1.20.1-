@@ -333,7 +333,14 @@ public class ModBlocks {
             }
 
             if (state.getValue(HAS_PAPER)) {
-                if (level.isClientSide) {
+                if (!level.isClientSide) {
+                    if (typewriterBe.dialogueStep == 0 && (typewriterBe.pagesText[0] == null || typewriterBe.pagesText[0].isEmpty())) {
+                        typewriterBe.dialogueStep = 1;
+                        typewriterBe.pagesText[0] = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1");
+                        typewriterBe.setChanged();
+                        level.sendBlockUpdated(pos, state, state, 3);
+                    }
+                } else {
                     com.closetfunc.client.ClosetClient.openCustomTypewriterScreen(pos, typewriterBe.insertedPaperCount);
                 }
                 return InteractionResult.SUCCESS;

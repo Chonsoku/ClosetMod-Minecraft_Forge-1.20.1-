@@ -7,6 +7,7 @@ import com.closetfunc.sound.ModSounds;
 import com.closetfunc.worldgen.ModFeature;
 import com.closetfunc.event.ModEvents;
 import com.closetfunc.client.ClosetClient;
+import com.closetfunc.network.ModMessages;
 
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
@@ -26,6 +27,7 @@ public class MainCloset {
         ModBlockEntities.BLOCK_ENTITIES.register(bus);
         ModFeature.FEATURES.register(bus);
         ModSounds.SOUNDS.register(bus);
+        ModMessages.register();
 
         MinecraftForge.EVENT_BUS.register(ModEvents.class);
         MinecraftForge.EVENT_BUS.register(ModBlockEntities.ClosetBlockEntity.class);

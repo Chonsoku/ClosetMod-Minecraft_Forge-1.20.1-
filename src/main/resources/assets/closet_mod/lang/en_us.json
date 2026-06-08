@@ -14,5 +14,9 @@
   "chat.closet_mod.typewriter.end": " to use the typewriter...",
 
   /// System messages
-  "death.attack.heart_attack": "%1$s died of a heart attack..."
+  "death.attack.heart_attack": "%1$s died of a heart attack...",
+
+  /// Messages from the entity in the typewriter
+  "text.closet_mod.typewriter.step1": "Hello, human... \nHow are you doing? Good or not so good?)\n",
+  "text.closet_mod.typewriter.step2": "Interesting... Are you happy with the use of the closet?|\n"
 }

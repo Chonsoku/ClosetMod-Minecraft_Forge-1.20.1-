@@ -1,8 +1,11 @@
 package com.closetfunc.block_entity;
 
+import java.util.UUID;
+
 import com.closetfunc.MainCloset;
 import com.closetfunc.block.ModBlocks;
 import com.closetfunc.sound.ModSounds;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.nbt.CompoundTag;
@@ -14,7 +17,6 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
-import java.util.UUID;
 
 @SuppressWarnings("null")
 public class ModBlockEntities {
@@ -230,6 +232,8 @@ public class ModBlockEntities {
         public int insertedPaperCount = 0;
         public String[] pagesText = new String[128];
 
+        public int dialogueStep = 0;
+        public java.util.List<String> playerAnswersLog = new java.util.ArrayList<>();
         public TypewriterBlockEntity(BlockPos pos, BlockState state) {
             super(TYPEWRITER_BE.get(), pos, state);
             for (int i = 0; i < pagesText.length; i++) {
@@ -245,9 +249,17 @@ public class ModBlockEntities {
         protected void saveAdditional(CompoundTag tag) {
             super.saveAdditional(tag);
             tag.putInt("InsertedPaperCount", this.insertedPaperCount);
+            tag.putInt("DialogueStep", this.dialogueStep);
             
+            // Сохраняем историю ответов
+            ListTag answersList = new ListTag();
+            for (String answer : playerAnswersLog) {
+                answersList.add(net.minecraft.nbt.StringTag.valueOf(answer));
+            }
+            tag.put("PlayerAnswersLog", answersList);
+
             ListTag textList = new ListTag();
-            for (String text : pagesText) {
+            for (String text : this.pagesText) {
                 textList.add(net.minecraft.nbt.StringTag.valueOf(text != null ? text : ""));
             }
             tag.put("PagesText", textList);
@@ -257,14 +269,24 @@ public class ModBlockEntities {
         public void load(CompoundTag tag) {
             super.load(tag);
             this.insertedPaperCount = tag.getInt("InsertedPaperCount");
+            this.dialogueStep = tag.getInt("DialogueStep");
+            
+            this.playerAnswersLog.clear();
+            if (tag.contains("PlayerAnswersLog", 9)) {
+                ListTag answersList = tag.getList("PlayerAnswersLog", 8);
+                for (int i = 0; i < answersList.size(); i++) {
+                    this.playerAnswersLog.add(answersList.getString(i));
+                }
+            }
             
             if (tag.contains("PagesText", 9)) {
                 ListTag textList = tag.getList("PagesText", 8);
-                for (int i = 0; i < pagesText.length && i < textList.size(); i++) {
-                    pagesText[i] = textList.getString(i);
+                for (int i = 0; i < this.pagesText.length && i < textList.size(); i++) {
+                    this.pagesText[i] = textList.getString(i);
                 }
             }
         }
+
 
         // Метод для обновления текста с клиента
         public void updateTextFromServer(String[] newText) {
@@ -274,6 +296,7 @@ public class ModBlockEntities {
             }
             this.setChanged();
         }
+
 
         @org.jetbrains.annotations.Nullable
         @Override
@@ -290,7 +313,10 @@ public class ModBlockEntities {
 
         @Override
         public void onDataPacket(net.minecraft.network.Connection net, net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket pkt) {
-            this.load(pkt.getTag() != null ? pkt.getTag() : new CompoundTag());
+            CompoundTag tag = pkt.getTag();
+            if (tag != null) {
+                this.load(tag);
+            }
         }
     }
 }

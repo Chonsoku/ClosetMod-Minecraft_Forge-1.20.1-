@@ -13,6 +13,10 @@
   "chat.closet_mod.typewriter.paper": "бумага",
   "chat.closet_mod.typewriter.end": " для использования печатной машинки...",
 
-  // Системные сообщения
-  "death.attack.heart_attack": "%1$s скончался от сердечного приступа..."
+  /// Системные сообщения
+  "death.attack.heart_attack": "%1$s скончался от сердечного приступа...",
+
+  /// Сообщения от сущности в печатной машинке
+  "text.closet_mod.typewriter.step1": "Привет, человек... \nКак твои дела? Хорошо или не очень?)\n",
+  "text.closet_mod.typewriter.step2": "Интересно... Ты доволен использованием шкафа?|\n"
 }
