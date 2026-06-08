@@ -246,6 +246,10 @@ public class ClosetClient {
                             playerResponse.contains("good") || playerResponse.contains("not") || 
                             playerResponse.contains("нет") || playerResponse.contains("да") || 
                             playerResponse.contains("yes") || playerResponse.contains("no")) {
+                                
+                            be.playerAnswersLog.clear();
+                            be.playerAnswersLog.add(playerResponse);
+
                             
                             be.dialogueStep = 2;
                             
@@ -258,10 +262,42 @@ public class ClosetClient {
                     }
                 }
 
-                // Отправляем финальный текст на сервер
-                com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(blockPos, this.localPagesText, be.dialogueStep));
+                else if (be.dialogueStep == 2) {
+                    String currentText = this.localPagesText[currentPage].toLowerCase();
+                    String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2").toLowerCase();
+                    
+                    if (currentText.contains(q2) && currentText.length() > currentText.indexOf(q2) + q2.length()) {
+                        String playerResponse = currentText.substring(currentText.indexOf(q2) + q2.length()).trim();
+                        
+                        boolean responseIsGood = playerResponse.contains("да") || playerResponse.contains("хорошо") || playerResponse.contains("yes") || playerResponse.contains("good");
+                        boolean responseIsBad = playerResponse.contains("нет") || playerResponse.contains("не очень") || playerResponse.contains("no") || playerResponse.contains("not");
 
-                // Локальная проверка пасхалки Death Note
+                        if (responseIsGood || responseIsBad) {
+                            be.dialogueStep = 3;
+                            
+                            String firstAnswer = be.playerAnswersLog.isEmpty() ? "" : be.playerAnswersLog.get(0).toLowerCase();
+                            boolean firstIsBad = firstAnswer.contains("нет") || firstAnswer.contains("не очень") || firstAnswer.contains("no") || firstAnswer.contains("not");
+                            boolean totalNegative = firstIsBad && responseIsBad;
+
+                            be.rewardType = totalNegative ? 2 : 1;
+
+                            String nextStepKey = totalNegative ? "text.closet_mod.typewriter.step3.2" : "text.closet_mod.typewriter.step3";
+                            this.localPagesText[currentPage] += "\n\n" + net.minecraft.client.resources.language.I18n.get(nextStepKey);
+                            
+                            net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
+                            if (localPlayer != null) {
+                                net.minecraft.sounds.SoundEvent sound = totalNegative ? net.minecraft.sounds.SoundEvents.AMBIENT_CAVE.get() : net.minecraft.sounds.SoundEvents.NOTE_BLOCK_CHIME.get();
+                                float pitch = totalNegative ? 0.5F : 1.2F;
+                                Minecraft.getInstance().level.playSound(localPlayer, blockPos, sound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, pitch);
+                            }
+                            // Отправление финального текста на сервер
+                            com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(blockPos, this.localPagesText, be.dialogueStep, be.rewardType));
+                        }
+                    }
+                }
+               
+
+                // Локальная проверка пасхалки на "Death Note"
                 Player player = Minecraft.getInstance().player;
                 if (player != null && !player.getPersistentData().contains("DeathNoteTriggeredClient")) {
                     String playerName = player.getGameProfile().getName().toLowerCase().trim();

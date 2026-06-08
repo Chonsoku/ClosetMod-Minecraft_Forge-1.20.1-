@@ -231,6 +231,7 @@ public class ModBlockEntities {
     public static class TypewriterBlockEntity extends BlockEntity {
         public int insertedPaperCount = 0;
         public String[] pagesText = new String[128];
+        public int rewardType = 0;
 
         public int dialogueStep = 0;
         public java.util.List<String> playerAnswersLog = new java.util.ArrayList<>();
@@ -250,6 +251,7 @@ public class ModBlockEntities {
             super.saveAdditional(tag);
             tag.putInt("InsertedPaperCount", this.insertedPaperCount);
             tag.putInt("DialogueStep", this.dialogueStep);
+            tag.putInt("RewardType", this.rewardType);
             
             // Сохраняем историю ответов
             ListTag answersList = new ListTag();
@@ -270,6 +272,7 @@ public class ModBlockEntities {
             super.load(tag);
             this.insertedPaperCount = tag.getInt("InsertedPaperCount");
             this.dialogueStep = tag.getInt("DialogueStep");
+            this.rewardType = tag.getInt("RewardType");
             
             this.playerAnswersLog.clear();
             if (tag.contains("PlayerAnswersLog", 9)) {

@@ -43,16 +43,19 @@ public class ModMessages {
         private final BlockPos pos;
         private final String[] pagesText;
         private final int dialogueStep;
+        private final int rewardType;
 
-        public ServerboundTypewriterTextPacket(BlockPos pos, String[] pagesText, int dialogueStep) {
+        public ServerboundTypewriterTextPacket(BlockPos pos, String[] pagesText, int dialogueStep, int rewardType) {
             this.pos = pos;
             this.pagesText = pagesText;
             this.dialogueStep = dialogueStep;
+            this.rewardType = rewardType;
         }
 
         public ServerboundTypewriterTextPacket(FriendlyByteBuf buf) {
             this.pos = buf.readBlockPos();
             this.dialogueStep = buf.readInt();
+            this.rewardType = buf.readInt();
             this.pagesText = new String[128];
             for (int i = 0; i < 128; i++) {
                 this.pagesText[i] = buf.readUtf();
@@ -62,6 +65,7 @@ public class ModMessages {
         public void toBytes(FriendlyByteBuf buf) {
             buf.writeBlockPos(pos);
             buf.writeInt(dialogueStep);
+            buf.writeInt(rewardType);
             for (String text : pagesText) {
                 buf.writeUtf(text != null ? text : "");
             }
@@ -72,9 +76,9 @@ public class ModMessages {
             context.enqueueWork(() -> {
                 ServerLevel level = context.getSender().serverLevel();
                 if (level.hasChunkAt(pos) && level.getBlockEntity(pos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
-                    
                     be.updateTextFromServer(this.pagesText);
                     be.dialogueStep = this.dialogueStep;
+                    be.rewardType = this.rewardType;
                     
                     be.setChanged();
                     level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), 3);
