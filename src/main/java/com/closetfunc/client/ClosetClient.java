@@ -112,10 +112,10 @@ public class ClosetClient {
             if ((System.currentTimeMillis() / 500) % 2 == 0) {
                 textToShow += "_";
             }
-        
+
             int textColor = 0x3A3A3A;
 
-            // Пасхалка Death Note
+            // Пасхалка на "Death Note"
             if (Minecraft.getInstance().getConnection() != null) {
                 for (net.minecraft.client.multiplayer.PlayerInfo playerInfo : Minecraft.getInstance().getConnection().getOnlinePlayers()) {
                     String onlinePlayerName = playerInfo.getProfile().getName().toLowerCase().trim();
@@ -162,6 +162,16 @@ public class ClosetClient {
                 guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentLineColor, false);
                 currentYOffset += 9; 
             }
+
+            int totalPages = localPagesText.length > 0 ? localPagesText.length : 1;
+            String pageString = (this.currentPage + 1) + " / " + totalPages;
+            
+            int stringWidth = Minecraft.getInstance().font.width(pageString);
+            
+            int pageX = x + (textureWidth / 2) - (stringWidth / 2);
+            int pageY = y + 240; 
+
+            guiGraphics.drawString(Minecraft.getInstance().font, pageString, pageX, pageY, 0x5A5A5A, false);
 
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
