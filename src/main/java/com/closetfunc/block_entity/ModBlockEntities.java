@@ -232,6 +232,8 @@ public class ModBlockEntities {
         public int insertedPaperCount = 0;
         public String[] pagesText = new String[128];
         public int rewardType = 0;
+        public int currentEventId = 0;
+        public boolean firstAnswerWasBad = false;
 
         public int dialogueStep = 0;
         public java.util.List<String> playerAnswersLog = new java.util.ArrayList<>();
@@ -252,13 +254,14 @@ public class ModBlockEntities {
             tag.putInt("InsertedPaperCount", this.insertedPaperCount);
             tag.putInt("DialogueStep", this.dialogueStep);
             tag.putInt("RewardType", this.rewardType);
+            tag.putInt("CurrentEventId", this.currentEventId);
             
             // Сохраняем историю ответов
             ListTag answersList = new ListTag();
             for (String answer : playerAnswersLog) {
                 answersList.add(net.minecraft.nbt.StringTag.valueOf(answer));
             }
-            tag.put("PlayerAnswersLog", answersList);
+            tag.putBoolean("FirstAnswerWasBad", this.firstAnswerWasBad);
 
             ListTag textList = new ListTag();
             for (String text : this.pagesText) {
@@ -273,12 +276,13 @@ public class ModBlockEntities {
             this.insertedPaperCount = tag.getInt("InsertedPaperCount");
             this.dialogueStep = tag.getInt("DialogueStep");
             this.rewardType = tag.getInt("RewardType");
+            this.currentEventId = tag.getInt("CurrentEventId");
             
             this.playerAnswersLog.clear();
             if (tag.contains("PlayerAnswersLog", 9)) {
                 ListTag answersList = tag.getList("PlayerAnswersLog", 8);
                 for (int i = 0; i < answersList.size(); i++) {
-                    this.playerAnswersLog.add(answersList.getString(i));
+                    this.firstAnswerWasBad = tag.getBoolean("FirstAnswerWasBad");
                 }
             }
             

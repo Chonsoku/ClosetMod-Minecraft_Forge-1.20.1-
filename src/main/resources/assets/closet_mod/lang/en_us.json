@@ -8,15 +8,23 @@
   "block.closet_mod.typewriter": "Typewriter",
   "item.closet_mod.typewriter": "Typewriter",
 
+
   /// Messages to chat
   "chat.closet_mod.typewriter.need": "*You need ",
   "chat.closet_mod.typewriter.paper": "paper",
   "chat.closet_mod.typewriter.end": " to use the typewriter...",
 
+
   /// System messages
   "death.attack.heart_attack": "%1$s died of a heart attack...",
 
+
   /// Messages from the entity in the typewriter
-  "text.closet_mod.typewriter.step1": "Hello, human... \nHow are you doing? Good or not so good?)\n",
-  "text.closet_mod.typewriter.step2": "Interesting... Are you happy with the use of the closet?|\n"
+  "text.closet_mod.typewriter.step1.1": "Hello, human... \nHow are you doing? Good or not so good?)\n",
+  "text.closet_mod.typewriter.step1.2": "Interesting... Are you happy with the use of the closet?|\n",
+
+
+  /// Messages events
+  "text.closet_mod.typewriter.event1.good": "I like you33\n I think... It's worth getting rid of all hostile entities at night#\n",
+  "text.closet_mod.typewriter.event1.bad": "I understand you... Goodbye. See you tomorrow-\n"
 }

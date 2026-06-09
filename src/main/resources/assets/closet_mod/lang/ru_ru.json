@@ -8,15 +8,23 @@
   "block.closet_mod.typewriter": "Печатная машинка",
   "item.closet_mod.typewriter": "Печатная машинка",
 
+
   /// Сообщения в чате
   "chat.closet_mod.typewriter.need": "*Вам нужна ",
   "chat.closet_mod.typewriter.paper": "бумага",
   "chat.closet_mod.typewriter.end": " для использования печатной машинки...",
 
+
   /// Системные сообщения
   "death.attack.heart_attack": "%1$s скончался от сердечного приступа...",
 
+
   /// Сообщения от сущности в печатной машинке
-  "text.closet_mod.typewriter.step1": "Привет, человек... \nКак твои дела? Хорошо или не очень?)\n",
-  "text.closet_mod.typewriter.step2": "Интересно... Ты доволен использованием шкафа?|\n"
+  "text.closet_mod.typewriter.step1.1": "Привет, человек... \nКак твои дела? Хорошо или плохо?)\n",
+  "text.closet_mod.typewriter.step1.2": "Интересно... Ты доволен использованием шкафа?|\n",
+
+
+  /// Сообщения для событий
+  "text.closet_mod.typewriter.event1.good": "Ты мне нравишься33\n Думаю... Стоит избавится от всех враждебных сущностей ночью#\n",
+  "text.closet_mod.typewriter.event1.bad": "Я тебя понял... Прощай. Увидимся завтра-\n"
 }

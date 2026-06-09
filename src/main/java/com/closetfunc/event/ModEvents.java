@@ -202,6 +202,7 @@ public class ModEvents {
         net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) event.level;
         long timeOfDay = level.getDayTime() % 24000L;
         
+        // Ночь: от 13000 до 23800 тиков
         if (timeOfDay >= 13000L && timeOfDay <= 23800L) {
             long ticksUntilMorning = 24000L - timeOfDay;
             int duration = (int) ticksUntilMorning;
@@ -213,39 +214,14 @@ public class ModEvents {
                 for (BlockPos targetPos : BlockPos.betweenClosed(playerPos.offset(-r, -4, -r), playerPos.offset(r, 4, r))) {
                     if (level.getBlockEntity(targetPos) instanceof ModBlockEntities.TypewriterBlockEntity typewriter && typewriter.rewardType > 0) {
                         
-                        if (typewriter.rewardType == 1) {
-                            java.util.List<?> entities = level.getEntitiesOfClass(
-                                net.minecraft.world.entity.monster.Monster.class, 
-                                serverPlayer.getBoundingBox().inflate(128.0D)
-                            );
-                            
-                            for (Object obj : entities) {
-                                if (obj instanceof net.minecraft.world.entity.monster.Monster monster) {
-                                    if (monster.isAlive()) {
-                                        monster.hurt(level.damageSources().fellOutOfWorld(), Float.MAX_VALUE);
-                                    }
-                                }
-                            }
-                        } 
-                        else if (typewriter.rewardType == 2) {
-                            if (!serverPlayer.hasEffect(net.minecraft.world.effect.MobEffects.DIG_SLOWDOWN)) {
-                                serverPlayer.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                                    net.minecraft.world.effect.MobEffects.DIG_SLOWDOWN, duration, 0, false, false
-                                ));
-                            }
+                        // РАСПРЕДЕЛЕНИЕ ПО КЛАССАМ:
+                        if (typewriter.rewardType % 2 != 0) {
+                            // Нечётные (1, 3, 5...) уходят в класс ХОРОШИХ исходов
+                            GoodRewards.execute(typewriter.rewardType, serverPlayer, level, duration);
+                        } else {
+                            // Чётные (2, 4, 6...) уходят в класс ПЛОХИХ исходов
+                            BadRewards.execute(typewriter.rewardType, serverPlayer, level, duration);
                         }
-                    }
-                }
-            }
-        } 
-        else {
-            for (ServerPlayer serverPlayer : level.players()) {
-                BlockPos playerPos = serverPlayer.blockPosition();
-                int r = 16;
-                for (BlockPos targetPos : BlockPos.betweenClosed(playerPos.offset(-r, -4, -r), playerPos.offset(r, 4, r))) {
-                    if (level.getBlockEntity(targetPos) instanceof ModBlockEntities.TypewriterBlockEntity typewriter && typewriter.rewardType > 0) {
-                        typewriter.rewardType = 0;
-                        typewriter.setChanged();
                     }
                 }
             }

@@ -12,6 +12,7 @@ import net.minecraftforge.network.NetworkRegistry;
 import net.minecraftforge.network.simple.SimpleChannel;
 import java.util.function.Supplier;
 
+@SuppressWarnings("null")
 public class ModMessages {
     private static SimpleChannel INSTANCE;
     private static int packetId = 0;
@@ -44,18 +45,24 @@ public class ModMessages {
         private final String[] pagesText;
         private final int dialogueStep;
         private final int rewardType;
+        private final int currentEventId;
+        private final boolean firstAnswerWasBad;
 
-        public ServerboundTypewriterTextPacket(BlockPos pos, String[] pagesText, int dialogueStep, int rewardType) {
+        public ServerboundTypewriterTextPacket(BlockPos pos, String[] pagesText, int dialogueStep, int rewardType, int currentEventId, boolean firstAnswerWasBad) {
             this.pos = pos;
             this.pagesText = pagesText;
             this.dialogueStep = dialogueStep;
             this.rewardType = rewardType;
+            this.currentEventId = currentEventId;
+            this.firstAnswerWasBad = firstAnswerWasBad;
         }
 
         public ServerboundTypewriterTextPacket(FriendlyByteBuf buf) {
             this.pos = buf.readBlockPos();
             this.dialogueStep = buf.readInt();
             this.rewardType = buf.readInt();
+            this.currentEventId = buf.readInt();
+            this.firstAnswerWasBad = buf.readBoolean();
             this.pagesText = new String[128];
             for (int i = 0; i < 128; i++) {
                 this.pagesText[i] = buf.readUtf();
@@ -66,6 +73,8 @@ public class ModMessages {
             buf.writeBlockPos(pos);
             buf.writeInt(dialogueStep);
             buf.writeInt(rewardType);
+            buf.writeInt(currentEventId);
+            buf.writeBoolean(firstAnswerWasBad);
             for (String text : pagesText) {
                 buf.writeUtf(text != null ? text : "");
             }
@@ -79,6 +88,8 @@ public class ModMessages {
                     be.updateTextFromServer(this.pagesText);
                     be.dialogueStep = this.dialogueStep;
                     be.rewardType = this.rewardType;
+                    be.currentEventId = this.currentEventId;
+                    be.firstAnswerWasBad = this.firstAnswerWasBad;
                     
                     be.setChanged();
                     level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), 3);

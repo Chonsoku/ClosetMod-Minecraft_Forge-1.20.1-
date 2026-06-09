@@ -57,27 +57,9 @@ public class ClosetClient {
             }
             this.maxPages = Math.max(2, Math.min(actualPaper * 2, 128));
 
-            for (int i = 0; i < 128; i++) {
-                this.localPagesText[i] = "";
-            }
-
             if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(pos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
-                if (be.pagesText[0] == null || be.pagesText[0].isEmpty()) {
-                    this.localPagesText[0] = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1");
-                }
-
                 for (int i = 0; i < be.pagesText.length; i++) {
-                    String rawText = be.pagesText[i];
-                    if (rawText != null && !rawText.isEmpty()) {
-                        String processed = rawText;
-                        if (processed.contains("text.closet_mod.typewriter.step1")) {
-                            processed = processed.replace("text.closet_mod.typewriter.step1", net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1"));
-                        }
-                        if (processed.contains("text.closet_mod.typewriter.step2")) {
-                            processed = processed.replace("text.closet_mod.typewriter.step2", net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2"));
-                        }
-                        this.localPagesText[i] = processed;
-                    }
+                    this.localPagesText[i] = be.pagesText[i] != null ? be.pagesText[i] : "";
                 }
             }
         }
@@ -88,15 +70,28 @@ public class ClosetClient {
             int x = (this.width - 340) / 2;
             int y = (this.height - 192) / 2;
             
-            this.addRenderableWidget(Button.builder(Component.literal(">"), (btn) -> {
-                if (currentPage + 1 < maxPages) currentPage++;
-            }).bounds(x + 240, y + 200, 20, 20).build());
+            Button nextBtn = Button.builder(Component.literal(">"), (btn) -> {
+                if (currentPage + 1 < maxPages) {
+                    currentPage++;
+                    this.setFocused(null);
+                }
+            }).bounds(x + 240, y + 200, 20, 20).build();
+            nextBtn.setFocused(false);
 
-            this.addRenderableWidget(Button.builder(Component.literal("<"), (btn) -> {
-                if (currentPage > 0) currentPage--;
-            }).bounds(x + 80, y + 200, 20, 20).build());
+            Button prevBtn = Button.builder(Component.literal("<"), (btn) -> {
+                if (currentPage > 0) {
+                    currentPage--;
+                    this.setFocused(null);
+                }
+            }).bounds(x + 80, y + 200, 20, 20).build();
+            prevBtn.setFocused(false);
+
+            this.addRenderableWidget(nextBtn);
+            this.addRenderableWidget(prevBtn);
+
+            this.setFocused(null);
         }
-        
+
         @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
@@ -108,70 +103,132 @@ public class ClosetClient {
 
             guiGraphics.blit(PAGE_TEXTURE, x, y, 0, 0, textureWidth, textureHeight, 256, 256);
 
-            String textToShow = localPagesText[currentPage];
-            if ((System.currentTimeMillis() / 500) % 2 == 0) {
-                textToShow += "_";
+            int currentStep = 1;
+            int rewardType = 0;
+            if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                currentStep = be.dialogueStep == 0 ? 1 : be.dialogueStep;
+                rewardType = be.rewardType;
             }
-
-            int textColor = 0x3A3A3A;
-
-            // Пасхалка на "Death Note"
-            if (Minecraft.getInstance().getConnection() != null) {
-                for (net.minecraft.client.multiplayer.PlayerInfo playerInfo : Minecraft.getInstance().getConnection().getOnlinePlayers()) {
-                    String onlinePlayerName = playerInfo.getProfile().getName().toLowerCase().trim();
-                    String cleanLocalText = textToShow.replace("\n", "").replace("\r", "").toLowerCase().trim();
-                    
-                    if (!onlinePlayerName.isEmpty() && cleanLocalText.contains(onlinePlayerName)) {
-                        textColor = 0x990000;   
-                        break;
-                    }
-                }
-            }
-
-            String q1 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1");
-            String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2");
 
             int currentYOffset = 0;
-            java.util.List<net.minecraft.util.FormattedCharSequence> splitLines = 
-                Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(textToShow), 140);
 
-            for (net.minecraft.util.FormattedCharSequence line : splitLines) {
-                int currentLineColor = textColor == 0x990000 ? 0x990000 : 0x3A3A3A;
-                
-                StringBuilder builder = new StringBuilder();
-                line.accept((index, style, codePoint) -> {
-                    builder.appendCodePoint(codePoint);
-                    return true;
-                });
-                String plainLine = builder.toString();
+            // Базовые цвета текста
+            int currentEntityColor = 0x990000; // Красный для сущности
+            int currentPlayerColor = 0x007700; // Зеленый для игрока
 
-                if (plainLine.contains(q1) || q1.contains(plainLine) && !plainLine.isEmpty() || 
-                    plainLine.contains(q2) || q2.contains(plainLine) && !plainLine.isEmpty()) {
-                    currentLineColor = 0x990000;
-                } 
-                else {
-                    String lowerLine = plainLine.toLowerCase();
-                    if (lowerLine.contains("хорошо") || lowerLine.contains("не очень") || 
-                        lowerLine.contains("good") || lowerLine.contains("not") || 
-                        lowerLine.contains("да") || lowerLine.contains("нет") || 
-                        lowerLine.contains("yes") || lowerLine.contains("no")) {
-                        currentLineColor = 0x007700;
+            String fullPlayerText = this.localPagesText[currentPage];
+
+            // --- ЛОГИКА ДЛЯ СТРАНИЦЫ 0 (СЮЖЕТНЫЙ ОПРОС СУЩНОСТИ) ---
+            if (currentPage == 0) {
+                String firstAnswer = "";
+                String secondAnswer = "";
+
+                // Разделяем накопленный текст первой страницы на два ответа
+                String[] splitAnswers = fullPlayerText.split("\n\n");
+                if (splitAnswers.length > 0) firstAnswer = splitAnswers[0].replace(" [FINISHED]", "").trim();
+                if (splitAnswers.length > 1) secondAnswer = splitAnswers[1].replace(" [FINISHED]", "").trim();
+
+                // Добавляем мигающий курсор к текущему редактируемому полю опроса
+                if (currentStep == 1 && (System.currentTimeMillis() / 500) % 2 == 0) {
+                    firstAnswer += "_";
+                } else if (currentStep == 2 && (System.currentTimeMillis() / 500) % 2 == 0) {
+                    secondAnswer += "_";
+                }
+
+                // ПАСХАЛКА DEATH NOTE (Проверяем никнеймы на сюжетной странице)
+                if (Minecraft.getInstance().getConnection() != null) {
+                    String cleanFirst = firstAnswer.replace("_", "").toLowerCase().trim();
+                    String cleanSecond = secondAnswer.replace("_", "").toLowerCase().trim();
+                    
+                    for (net.minecraft.client.multiplayer.PlayerInfo playerInfo : Minecraft.getInstance().getConnection().getOnlinePlayers()) {
+                        String onlinePlayerName = playerInfo.getProfile().getName().toLowerCase().trim();
+                        if (!onlinePlayerName.isEmpty() && (cleanFirst.contains(onlinePlayerName) || cleanSecond.contains(onlinePlayerName))) {
+                            currentEntityColor = 0x990000;   
+                            currentPlayerColor = 0x990000;
+                            break;
+                        }
                     }
                 }
 
-                guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentLineColor, false);
-                currentYOffset += 9; 
+                // ОТРИСОВКА БЛОКА №1: Вопрос 1.1 + Ответ 1.1
+                String q1 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1.1");
+                java.util.List<net.minecraft.util.FormattedCharSequence> q1Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q1), 140);
+                for (net.minecraft.util.FormattedCharSequence line : q1Lines) {
+                    guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentEntityColor, false);
+                    currentYOffset += 9;
+                }
+                
+                currentYOffset += 2;
+                
+                java.util.List<net.minecraft.util.FormattedCharSequence> a1Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(firstAnswer), 140);
+                for (net.minecraft.util.FormattedCharSequence line : a1Lines) {
+                    guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentPlayerColor, false);
+                    currentYOffset += 9;
+                }
+
+                // ОТРИСОВКА БЛОКА №2: Вопрос 1.2 + Ответ 1.2
+                if (currentStep >= 2) {
+                    currentYOffset += 8;
+                    
+                    String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1.2");
+                    java.util.List<net.minecraft.util.FormattedCharSequence> q2Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q2), 140);
+                    for (net.minecraft.util.FormattedCharSequence line : q2Lines) {
+                        guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentEntityColor, false);
+                        currentYOffset += 9;
+                    }
+                    
+                    currentYOffset += 2;
+                    
+                    java.util.List<net.minecraft.util.FormattedCharSequence> a2Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(secondAnswer), 140);
+                    for (net.minecraft.util.FormattedCharSequence line : a2Lines) {
+                        guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentPlayerColor, false);
+                        currentYOffset += 9;
+                    }
+                }
+
+                // ОТРИСОВКА БЛОКА №3: Финальный вердикт сущности
+                if (currentStep == 3) {
+                    currentYOffset += 8;
+                    String finalKey = (rewardType % 2 == 0) ? "text.closet_mod.typewriter.event1.bad" : "text.closet_mod.typewriter.event1.good";
+                    String q3 = net.minecraft.client.resources.language.I18n.get(finalKey);
+                    java.util.List<net.minecraft.util.FormattedCharSequence> q3Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q3), 140);
+                    for (net.minecraft.util.FormattedCharSequence line : q3Lines) {
+                        guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentEntityColor, false);
+                        currentYOffset += 9;
+                    }
+                }
+
+            } 
+            else {
+                String freeTextWithCursor = fullPlayerText;
+                if ((System.currentTimeMillis() / 500) % 2 == 0) {
+                    freeTextWithCursor += "_";
+                }
+
+                int freePageColor = 0x222222;
+
+                // ПАСХАЛКА на "DEATH NOTE" (Проверяем никнеймы на свободных страницах)
+                if (Minecraft.getInstance().getConnection() != null) {
+                    String cleanFree = fullPlayerText.toLowerCase().trim();
+                    for (net.minecraft.client.multiplayer.PlayerInfo playerInfo : Minecraft.getInstance().getConnection().getOnlinePlayers()) {
+                        String onlinePlayerName = playerInfo.getProfile().getName().toLowerCase().trim();
+                        if (!onlinePlayerName.isEmpty() && cleanFree.contains(onlinePlayerName)) {
+                            currentPlayerColor = 0x990000;
+                            break;
+                        }
+                    }
+                }
+                java.util.List<net.minecraft.util.FormattedCharSequence> freeLines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(freeTextWithCursor), 140);
+                for (net.minecraft.util.FormattedCharSequence line : freeLines) {
+                    guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, freePageColor, false);
+                    currentYOffset += 9;
+                }
             }
 
-            int totalPages = localPagesText.length > 0 ? localPagesText.length : 1;
-            String pageString = (this.currentPage + 1) + " / " + totalPages;
-            
+            // Рендер номера страницы внизу листа
+            String pageString = (this.currentPage + 1) + " / " + maxPages;
             int stringWidth = Minecraft.getInstance().font.width(pageString);
-            
-            int pageX = x + (textureWidth / 2) - (stringWidth / 2);
-            int pageY = y + 240; 
-
-            guiGraphics.drawString(Minecraft.getInstance().font, pageString, pageX, pageY, 0x5A5A5A, false);
+            guiGraphics.drawString(Minecraft.getInstance().font, pageString, x + (textureWidth / 2) - (stringWidth / 2), y + 240, 0x5A5A5A, false);
 
             super.render(guiGraphics, mouseX, mouseY, partialTick);
         }
@@ -180,54 +237,104 @@ public class ClosetClient {
         @Override
         public boolean charTyped(char codePoint, int modifiers) {
             if (currentPage < maxPages) {
+                int currentStep = 1;
+                if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                    currentStep = be.dialogueStep == 0 ? 1 : be.dialogueStep;
+                }
+
+                if (currentPage == 0 && currentStep >= 3) {
+                    return false;
+                }
+
                 String currentText = localPagesText[currentPage];
                 String testText = currentText + codePoint;
                 
                 int textHeight = Minecraft.getInstance().font.wordWrapHeight(testText, 140);
                 if (textHeight <= 184 && currentText.length() < 500) {
                     localPagesText[currentPage] = testText;
-                    saveTextToBlockEntity();
+                    
+                    if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                        com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(blockPos, this.localPagesText, be.dialogueStep, be.rewardType, be.currentEventId, be.firstAnswerWasBad));
+                    }
                     return true;
                 }
             }
             return super.charTyped(codePoint, modifiers);
         }
 
+
         @Override
         public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-            if (keyCode == 259 && currentPage < maxPages && !localPagesText[currentPage].isEmpty()) {
-                String currentText = localPagesText[currentPage];
-                
-                String q1 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1");
-                String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2");
-
-                int protectedLength = 0;
-                if (currentText.startsWith(q1)) {
-                    protectedLength += q1.length();
-                }
-                if (currentText.contains(q2)) {
-                    int index = currentText.indexOf(q2);
-                    protectedLength = index + q2.length();
-                }
-                
-                if (currentText.length() > protectedLength) {
-                    localPagesText[currentPage] = currentText.substring(0, currentText.length() - 1);
-                    saveTextToBlockEntity();
-                    return true;
-                }
-                return false;
+            // Перехват нажатия пробела, чтобы он использовался игрой как символом, а не для переключения между страницами!
+            int currentStep = 1;
+            if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                currentStep = be.dialogueStep == 0 ? 1 : be.dialogueStep;
             }
 
-            if ((keyCode == 257 || keyCode == 335) && currentPage < maxPages) {
+            // Код 32 = Space (Пробел)
+            if (keyCode == 32) {
+                if (currentPage == 0 && currentStep >= 3) {
+                    return false;
+                }
                 String currentText = localPagesText[currentPage];
-                String testText = currentText + "\n";
+                String testText = currentText + " ";
                 int textHeight = Minecraft.getInstance().font.wordWrapHeight(testText, 140);
-                if (textHeight <= 184) {
+                if (textHeight <= 184 && currentText.length() < 500) {
                     localPagesText[currentPage] = testText;
                     saveTextToBlockEntity();
-                    return true;
                 }
+                return true; 
             }
+
+            // Коды стрелок: Влево (263), Вправо (262), Вверх (265), Вниз (264)
+            if (keyCode == 263 || keyCode == 262 || keyCode == 265 || keyCode == 264) {
+                return true; 
+            }
+
+            // Основная часть метода keyPressed
+            if (keyCode == 259 && !localPagesText[currentPage].isEmpty()) {
+                String currentText = localPagesText[currentPage];
+
+                if (currentPage == 0) {
+                    if (currentStep >= 3) {
+                        return false; 
+                    }
+                    
+                    if (currentStep == 2) {
+                        int lastSplit = currentText.lastIndexOf("\n\n");
+                        if (lastSplit != -1) {
+                            int protectedLength = lastSplit + 2; 
+                            if (currentText.length() > protectedLength) {
+                                localPagesText[currentPage] = currentText.substring(0, currentText.length() - 1);
+                                saveTextToBlockEntity();
+                                return true;
+                            }
+                            return false; 
+                        }
+                    }
+                }
+                
+                localPagesText[currentPage] = currentText.substring(0, currentText.length() - 1);
+                saveTextToBlockEntity();
+                return true;
+            }
+
+            // Кнопка Enter (коды 257 и 335)
+            if (keyCode == 257 || keyCode == 335) {
+                if (currentPage == 0 && currentStep < 3) {
+                    saveTextToBlockEntity();
+                } else {
+                    String currentText = localPagesText[currentPage];
+                    String testText = currentText + "\n";
+                    int textHeight = Minecraft.getInstance().font.wordWrapHeight(testText, 140);
+                    if (textHeight <= 184) {
+                        localPagesText[currentPage] = testText;
+                        saveTextToBlockEntity();
+                    }
+                }
+                return true;
+            }
+
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
 
@@ -235,93 +342,96 @@ public class ClosetClient {
         private void saveTextToBlockEntity() {
             if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
                 
-                if (be.dialogueStep == 1) {
-                    String currentText = this.localPagesText[currentPage].toLowerCase();
-                    String q1 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1").toLowerCase();
-                    
-                    if (currentText.length() > q1.length()) {
-                        String playerResponse = currentText.substring(q1.length()).trim();
-                        
-                        if (playerResponse.contains("хорошо") || playerResponse.contains("не очень") || 
-                            playerResponse.contains("good") || playerResponse.contains("not") || 
-                            playerResponse.contains("нет") || playerResponse.contains("да") || 
-                            playerResponse.contains("yes") || playerResponse.contains("no")) {
-                                
-                            be.playerAnswersLog.clear();
-                            be.playerAnswersLog.add(playerResponse);
+                String fullPageText = this.localPagesText[currentPage];
+                String currentTextLower = fullPageText.toLowerCase().trim();
 
-                            
-                            be.dialogueStep = 2;
-                            
-                            String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2");
-                            this.localPagesText[currentPage] += "\n\n" + q2;
-                            
-                            Minecraft.getInstance().level.playSound(Minecraft.getInstance().player, blockPos, 
-                                    net.minecraft.sounds.SoundEvents.NOTE_BLOCK_HAT.get(), net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.2F);
-                        }
+                if (be.dialogueStep == 1 || be.dialogueStep == 0) {
+                    be.dialogueStep = 1;
+
+                    boolean isGood = currentTextLower.contains("хорошо") || currentTextLower.contains("good") || currentTextLower.contains("да") || currentTextLower.contains("yes");
+                    boolean isBad = currentTextLower.contains("плохо") || currentTextLower.contains("bad") || currentTextLower.contains("нет") || currentTextLower.contains("no");
+
+                    if (isGood || isBad) {
+                        be.firstAnswerWasBad = isBad;
+                        
+                        be.dialogueStep = 2;
+                        
+                        this.localPagesText[currentPage] = fullPageText + "\n\n"; 
+                        
+                        Minecraft.getInstance().level.playSound(Minecraft.getInstance().player, blockPos, 
+                                net.minecraft.sounds.SoundEvents.NOTE_BLOCK_HAT.get(), net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, 1.2F);
                     }
                 }
 
                 else if (be.dialogueStep == 2) {
-                    String currentText = this.localPagesText[currentPage].toLowerCase();
-                    String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step2").toLowerCase();
-                    
-                    if (currentText.contains(q2) && currentText.length() > currentText.indexOf(q2) + q2.length()) {
-                        String playerResponse = currentText.substring(currentText.indexOf(q2) + q2.length()).trim();
+                    String playerInput = "";
+                    int lastNewLine = currentTextLower.lastIndexOf("\n");
+                    if (lastNewLine != -1 && lastNewLine < currentTextLower.length() - 1) {
+                        playerInput = currentTextLower.substring(lastNewLine + 1).trim();
+                    } else {
+                        playerInput = currentTextLower;
+                    }
+
+                    boolean responseIsGood = playerInput.contains("да") || playerInput.contains("хорошо") || playerInput.contains("yes") || playerInput.contains("good");
+                    boolean responseIsBad = playerInput.contains("нет") || playerInput.contains("плохо") || playerInput.contains("no") || playerInput.contains("bad");
+
+                    if (responseIsGood || responseIsBad) {
+                        be.dialogueStep = 3;
                         
-                        boolean responseIsGood = playerResponse.contains("да") || playerResponse.contains("хорошо") || playerResponse.contains("yes") || playerResponse.contains("good");
-                        boolean responseIsBad = playerResponse.contains("нет") || playerResponse.contains("не очень") || playerResponse.contains("no") || playerResponse.contains("not");
+                        boolean totalNegative = be.firstAnswerWasBad && responseIsBad;
 
-                        if (responseIsGood || responseIsBad) {
-                            be.dialogueStep = 3;
-                            
-                            String firstAnswer = be.playerAnswersLog.isEmpty() ? "" : be.playerAnswersLog.get(0).toLowerCase();
-                            boolean firstIsBad = firstAnswer.contains("нет") || firstAnswer.contains("не очень") || firstAnswer.contains("no") || firstAnswer.contains("not");
-                            boolean totalNegative = firstIsBad && responseIsBad;
+                        be.currentEventId = Minecraft.getInstance().level.random.nextInt(2) + 1; 
 
-                            be.rewardType = totalNegative ? 2 : 1;
+                        if (totalNegative) {
+                            be.rewardType = be.currentEventId * 2;
+                        } else {
+                            be.rewardType = (be.currentEventId * 2) - 1;
+                        }
 
-                            String nextStepKey = totalNegative ? "text.closet_mod.typewriter.step3.2" : "text.closet_mod.typewriter.step3";
-                            this.localPagesText[currentPage] += "\n\n" + net.minecraft.client.resources.language.I18n.get(nextStepKey);
-                            
-                            net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
-                            if (localPlayer != null) {
-                                net.minecraft.sounds.SoundEvent sound = totalNegative ? net.minecraft.sounds.SoundEvents.AMBIENT_CAVE.get() : net.minecraft.sounds.SoundEvents.NOTE_BLOCK_CHIME.get();
-                                float pitch = totalNegative ? 0.5F : 1.2F;
-                                Minecraft.getInstance().level.playSound(localPlayer, blockPos, sound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, pitch);
-                            }
-                            // Отправление финального текста на сервер
-                            com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(blockPos, this.localPagesText, be.dialogueStep, be.rewardType));
+                        this.localPagesText[currentPage] = fullPageText + " [FINISHED]";
+                        
+                        net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
+                        if (localPlayer != null) {
+                            net.minecraft.sounds.SoundEvent sound = totalNegative ? net.minecraft.sounds.SoundEvents.AMBIENT_CAVE.get() : net.minecraft.sounds.SoundEvents.NOTE_BLOCK_CHIME.get();
+                            float pitch = totalNegative ? 0.5F : 1.2F;
+                            Minecraft.getInstance().level.playSound(localPlayer, blockPos, sound, net.minecraft.sounds.SoundSource.BLOCKS, 1.0F, pitch);
                         }
                     }
                 }
-               
+        
 
                 // Локальная проверка пасхалки на "Death Note"
                 Player player = Minecraft.getInstance().player;
                 if (player != null && !player.getPersistentData().contains("DeathNoteTriggeredClient")) {
                     String playerName = player.getGameProfile().getName().toLowerCase().trim();
                     
-                    for (String pageText : this.localPagesText) {
-                        if (pageText != null && !pageText.isEmpty()) {
-                            String cleanText = pageText.replace("\n", "").replace("\r", "").toLowerCase().trim();
-                            
-                            if (cleanText.contains(playerName)) {
-                                player.getPersistentData().putBoolean("DeathNoteTriggeredClient", true);
-                                if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
-                                    localPlayer.connection.sendCommand("closetmod_trigger_heartattack");
-                                }
-                                break;
-                            }
+                    String cleanText = this.localPagesText[currentPage]
+                            .replace("\n", "")
+                            .replace("\r", "")
+                            .replace(" [FINISHED]", "")
+                            .toLowerCase()
+                            .trim();
+                    
+                    if (!playerName.isEmpty() && cleanText.contains(playerName)) {
+                        player.getPersistentData().putBoolean("DeathNoteTriggeredClient", true);
+                        
+                        net.minecraft.network.chat.MutableComponent scaryMessage = net.minecraft.network.chat.Component.literal("DEATHNOTE_ACTIVATED_DOOM_AWAITS")
+                                .withStyle(net.minecraft.ChatFormatting.RED)
+                                .withStyle(net.minecraft.ChatFormatting.OBFUSCATED);
+                        
+                        player.sendSystemMessage(scaryMessage);
+
+                        if (Minecraft.getInstance().level != null) {
+                            Minecraft.getInstance().level.playSound(player, blockPos, 
+                                    net.minecraft.sounds.SoundEvents.LIGHTNING_BOLT_THUNDER, net.minecraft.sounds.SoundSource.WEATHER, 1.0F, 0.8F);
+                        }
+
+                        if (player instanceof net.minecraft.client.player.LocalPlayer localPlayer) {
+                            localPlayer.connection.sendCommand("closetmod_trigger_heartattack");
                         }
                     }
                 }
             }
-        }
-
-        @Override
-        public boolean isPauseScreen() { 
-            return false; 
         }
     }
 }
