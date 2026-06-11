@@ -36,20 +36,36 @@ public class ClosetClient {
         }
     }
 
-    public static void openCustomTypewriterScreen(BlockPos pos, int paperCount) {
-        Minecraft.getInstance().setScreen(new TypewriterSingleScreen(pos, paperCount));
+    @net.minecraftforge.eventbus.api.SubscribeEvent
+    public static void onRenderHearts(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
+        if (event.getOverlay().id().getPath().equals("player_health")) {
+            net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+            
+            if (player != null && player.getPersistentData().getBoolean("TypewriterHardcoreMode")) {
+                if (Minecraft.getInstance().level != null) {
+                    Minecraft.getInstance().level.getLevelData().isHardcore(); 
+                }
+            }
+        }
     }
+
+    public static void openCustomTypewriterScreen(BlockPos pos, int paperCount, int surveyDay, String serverFirstPageText) {
+        Minecraft.getInstance().setScreen(new TypewriterSingleScreen(pos, paperCount, surveyDay, serverFirstPageText));
+    }
+
 
     // --- ОДИНОЧНЫЙ ЛИСТ ФОРМАТА А4 ---
     public static class TypewriterSingleScreen extends Screen {
         private final BlockPos blockPos;
         private final int maxPages;
+        private final int currentSurveyDay;
         private int currentPage = 0;
         private String[] localPagesText = new String[128];
 
-        public TypewriterSingleScreen(BlockPos pos, int paperCount) {
+        public TypewriterSingleScreen(BlockPos pos, int paperCount, int surveyDay, String serverFirstPageText) {
             super(Component.literal("Typewriter"));
             this.blockPos = pos;
+            this.currentSurveyDay = surveyDay;
             
             int actualPaper = paperCount;
             if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(pos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
@@ -62,6 +78,7 @@ public class ClosetClient {
                     this.localPagesText[i] = be.pagesText[i] != null ? be.pagesText[i] : "";
                 }
             }
+            this.localPagesText[0] = serverFirstPageText != null ? serverFirstPageText : " ";
         }
 
         @Override
@@ -93,6 +110,12 @@ public class ClosetClient {
         }
 
         @Override
+        public void onClose() {
+            saveTextToBlockEntity();
+            super.onClose();
+        }
+
+        @Override
         public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
             this.renderBackground(guiGraphics);
 
@@ -120,15 +143,18 @@ public class ClosetClient {
 
             // --- ЛОГИКА ДЛЯ СТРАНИЦЫ 0 (СЮЖЕТНЫЙ ОПРОС СУЩНОСТИ) ---
             if (currentPage == 0) {
+                int clientWorldDay = 1;
                 String firstAnswer = "";
                 String secondAnswer = "";
 
-                // Разделяем накопленный текст первой страницы на два ответа
                 String[] splitAnswers = fullPlayerText.split("\n\n");
                 if (splitAnswers.length > 0) firstAnswer = splitAnswers[0].replace(" [FINISHED]", "").trim();
                 if (splitAnswers.length > 1) secondAnswer = splitAnswers[1].replace(" [FINISHED]", "").trim();
 
-                // Добавляем мигающий курсор к текущему редактируемому полю опроса
+                if (Minecraft.getInstance().level != null) {
+                    clientWorldDay = (int) (Minecraft.getInstance().level.getDayTime() / 24000L) + 1;
+                }
+
                 if (currentStep == 1 && (System.currentTimeMillis() / 500) % 2 == 0) {
                     firstAnswer += "_";
                 } else if (currentStep == 2 && (System.currentTimeMillis() / 500) % 2 == 0) {
@@ -151,7 +177,8 @@ public class ClosetClient {
                 }
 
                 // ОТРИСОВКА БЛОКА №1: Вопрос 1.1 + Ответ 1.1
-                String q1 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1.1");
+                String q1Key = "text.closet_mod.typewriter.step" + this.currentSurveyDay + ".1";
+                String q1 = net.minecraft.client.resources.language.I18n.get(q1Key);
                 java.util.List<net.minecraft.util.FormattedCharSequence> q1Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q1), 140);
                 for (net.minecraft.util.FormattedCharSequence line : q1Lines) {
                     guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentEntityColor, false);
@@ -166,11 +193,12 @@ public class ClosetClient {
                     currentYOffset += 9;
                 }
 
-                // ОТРИСОВКА БЛОКА №2: Вопрос 1.2 + Ответ 1.2
+                // ОТРИСОВКА БЛОКА №2: Вопрос 1.2/2.2 + Ответ
                 if (currentStep >= 2) {
                     currentYOffset += 8;
                     
-                    String q2 = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1.2");
+                    String q2Key = "text.closet_mod.typewriter.step" + this.currentSurveyDay + ".2";
+                    String q2 = net.minecraft.client.resources.language.I18n.get(q2Key);
                     java.util.List<net.minecraft.util.FormattedCharSequence> q2Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q2), 140);
                     for (net.minecraft.util.FormattedCharSequence line : q2Lines) {
                         guiGraphics.drawString(Minecraft.getInstance().font, line, x + 40, y + 33 + currentYOffset, currentEntityColor, false);
@@ -186,10 +214,15 @@ public class ClosetClient {
                     }
                 }
 
-                // ОТРИСОВКА БЛОКА №3: Финальный вердикт сущности
+                // ОТРИСОВКА БЛОКА №3: Финальный вердикт сущности (event1 или event2)
                 if (currentStep == 3) {
                     currentYOffset += 8;
-                    String finalKey = (rewardType % 2 == 0) ? "text.closet_mod.typewriter.event1.bad" : "text.closet_mod.typewriter.event1.good";
+                    
+                    boolean isBadVerdict = (rewardType % 2 == 0);
+                    String verdictSuffix = isBadVerdict ? ".bad" : ".good";
+                    
+                    String finalKey = "text.closet_mod.typewriter.event" + this.currentSurveyDay + verdictSuffix;
+                    
                     String q3 = net.minecraft.client.resources.language.I18n.get(finalKey);
                     java.util.List<net.minecraft.util.FormattedCharSequence> q3Lines = Minecraft.getInstance().font.split(net.minecraft.network.chat.Component.literal(q3), 140);
                     for (net.minecraft.util.FormattedCharSequence line : q3Lines) {
@@ -197,8 +230,7 @@ public class ClosetClient {
                         currentYOffset += 9;
                     }
                 }
-
-            } 
+            }
             else {
                 String freeTextWithCursor = fullPlayerText;
                 if ((System.currentTimeMillis() / 500) % 2 == 0) {
@@ -341,7 +373,6 @@ public class ClosetClient {
 
         private void saveTextToBlockEntity() {
             if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
-                
                 String fullPageText = this.localPagesText[currentPage];
                 String currentTextLower = fullPageText.toLowerCase().trim();
 
@@ -353,9 +384,7 @@ public class ClosetClient {
 
                     if (isGood || isBad) {
                         be.firstAnswerWasBad = isBad;
-                        
                         be.dialogueStep = 2;
-                        
                         this.localPagesText[currentPage] = fullPageText + "\n\n"; 
                         
                         Minecraft.getInstance().level.playSound(Minecraft.getInstance().player, blockPos, 
@@ -377,18 +406,21 @@ public class ClosetClient {
 
                     if (responseIsGood || responseIsBad) {
                         be.dialogueStep = 3;
-                        
                         boolean totalNegative = be.firstAnswerWasBad && responseIsBad;
 
-                        be.currentEventId = Minecraft.getInstance().level.random.nextInt(2) + 1; 
+                        be.currentEventId = this.currentSurveyDay; 
 
+                        // Формула автоматически сгенерирует:
+                        // День 1 -> Хороший: 1, Плохой: 2
+                        // День 2 -> Хороший: 3, Плохой: 4
+                        // День 3 -> Хороший: 5, Плохой: 6 ...
                         if (totalNegative) {
-                            be.rewardType = be.currentEventId * 2;
+                            be.rewardType = be.currentEventId * 2;       
                         } else {
-                            be.rewardType = (be.currentEventId * 2) - 1;
+                            be.rewardType = (be.currentEventId * 2) - 1; 
                         }
-
-                        this.localPagesText[currentPage] = fullPageText + " [FINISHED]";
+                        
+                        this.localPagesText[currentPage] = fullPageText + " \n§7загляни в эту печатную машинку завтра\n я буду тебя там ждать*§r";
                         
                         net.minecraft.client.player.LocalPlayer localPlayer = Minecraft.getInstance().player;
                         if (localPlayer != null) {
@@ -398,7 +430,6 @@ public class ClosetClient {
                         }
                     }
                 }
-        
 
                 // Локальная проверка пасхалки на "Death Note"
                 Player player = Minecraft.getInstance().player;
@@ -408,7 +439,7 @@ public class ClosetClient {
                     String cleanText = this.localPagesText[currentPage]
                             .replace("\n", "")
                             .replace("\r", "")
-                            .replace(" [FINISHED]", "")
+                            .replace("", "")
                             .toLowerCase()
                             .trim();
                     
@@ -431,6 +462,9 @@ public class ClosetClient {
                         }
                     }
                 }
+                com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(
+                    blockPos, this.localPagesText, be.dialogueStep, be.rewardType, be.currentEventId, be.firstAnswerWasBad
+                ));
             }
         }
     }

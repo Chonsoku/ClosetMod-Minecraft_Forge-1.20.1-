@@ -234,18 +234,16 @@ public class ModBlockEntities {
         public int rewardType = 0;
         public int currentEventId = 0;
         public boolean firstAnswerWasBad = false;
-
         public int dialogueStep = 0;
-        public java.util.List<String> playerAnswersLog = new java.util.ArrayList<>();
+
+        public int surveyDay = 1;         // Какой день опроса СЕЙЧАС активен (1, 2, 3... 10)
+        public long lastCompletedDay = -1; // На каких сутках мира (level.getDayTime() / 24000) был сдан ПОСЛЕДНИЙ опрос
+
         public TypewriterBlockEntity(BlockPos pos, BlockState state) {
             super(TYPEWRITER_BE.get(), pos, state);
             for (int i = 0; i < pagesText.length; i++) {
                 pagesText[i] = "";
             }
-        }
-
-        public boolean isValidBlockState(BlockState state) {
-            return state.is(ModBlocks.TYPEWRITER_BLOCK.get());
         }
 
         @Override
@@ -255,13 +253,10 @@ public class ModBlockEntities {
             tag.putInt("DialogueStep", this.dialogueStep);
             tag.putInt("RewardType", this.rewardType);
             tag.putInt("CurrentEventId", this.currentEventId);
-            
-            // Сохраняем историю ответов
-            ListTag answersList = new ListTag();
-            for (String answer : playerAnswersLog) {
-                answersList.add(net.minecraft.nbt.StringTag.valueOf(answer));
-            }
             tag.putBoolean("FirstAnswerWasBad", this.firstAnswerWasBad);
+            
+            tag.putInt("SurveyDay", this.surveyDay);
+            tag.putLong("LastCompletedDay", this.lastCompletedDay);
 
             ListTag textList = new ListTag();
             for (String text : this.pagesText) {
@@ -277,14 +272,10 @@ public class ModBlockEntities {
             this.dialogueStep = tag.getInt("DialogueStep");
             this.rewardType = tag.getInt("RewardType");
             this.currentEventId = tag.getInt("CurrentEventId");
+            this.firstAnswerWasBad = tag.getBoolean("FirstAnswerWasBad");
             
-            this.playerAnswersLog.clear();
-            if (tag.contains("PlayerAnswersLog", 9)) {
-                ListTag answersList = tag.getList("PlayerAnswersLog", 8);
-                for (int i = 0; i < answersList.size(); i++) {
-                    this.firstAnswerWasBad = tag.getBoolean("FirstAnswerWasBad");
-                }
-            }
+            this.surveyDay = tag.contains("SurveyDay") ? tag.getInt("SurveyDay") : 1;
+            this.lastCompletedDay = tag.contains("LastCompletedDay") ? tag.getLong("LastCompletedDay") : -1;
             
             if (tag.contains("PagesText", 9)) {
                 ListTag textList = tag.getList("PagesText", 8);
@@ -292,6 +283,11 @@ public class ModBlockEntities {
                     this.pagesText[i] = textList.getString(i);
                 }
             }
+        }
+
+
+        public boolean isValidBlockState(BlockState state) {
+            return state.is(ModBlocks.TYPEWRITER_BLOCK.get());
         }
 
 

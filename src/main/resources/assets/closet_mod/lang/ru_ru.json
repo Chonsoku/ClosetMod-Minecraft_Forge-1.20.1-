@@ -13,6 +13,7 @@
   "chat.closet_mod.typewriter.need": "*Вам нужна ",
   "chat.closet_mod.typewriter.paper": "бумага",
   "chat.closet_mod.typewriter.end": " для использования печатной машинки...",
+  "chat.closet_mod.typewriter.death_hardcore": "Прощай. Слаб ты без меня конечно_",
 
 
   /// Системные сообщения
@@ -22,9 +23,13 @@
   /// Сообщения от сущности в печатной машинке
   "text.closet_mod.typewriter.step1.1": "Привет, человек... \nКак твои дела? Хорошо или плохо?)\n",
   "text.closet_mod.typewriter.step1.2": "Интересно... Ты доволен использованием шкафа?|\n",
+  "text.closet_mod.typewriter.step2.1": "Снова привет.\nТебе понравилось то событие, которое я тебе доровал прошлой ночью?}\n",
+  "text.closet_mod.typewriter.step2.2": "Понял.\nТы хотел бы себя когда нибудь ощутить полностью неуязвимым?]\n",
 
 
   /// Сообщения для событий
-  "text.closet_mod.typewriter.event1.good": "Ты мне нравишься33\n Думаю... Стоит избавится от всех враждебных сущностей ночью#\n",
-  "text.closet_mod.typewriter.event1.bad": "Я тебя понял... Прощай. Увидимся завтра-\n"
+  "text.closet_mod.typewriter.event1.good": "Ты мне нравишься33\n Думаю... Стоит избавится от всех враждебных сущностей#\n",
+  "text.closet_mod.typewriter.event1.bad": "Я тебя понял... Прощай. Увидимся завтра-\n",
+  "text.closet_mod.typewriter.event2.good": "Ты продолжаешь мне нравится>>. Пора тебе ощутить себя полностью непобидимым!=\n",
+  "text.closet_mod.typewriter.event2.bad": "Жаль... Зря ты отказываешься от таких полезных подарков(\n"
 }

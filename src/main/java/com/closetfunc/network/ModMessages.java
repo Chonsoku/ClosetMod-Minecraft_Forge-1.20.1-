@@ -5,6 +5,7 @@ import com.closetfunc.block_entity.ModBlockEntities;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.network.NetworkDirection;
 import net.minecraftforge.network.NetworkEvent;
@@ -34,10 +35,20 @@ public class ModMessages {
                 .encoder(ServerboundTypewriterTextPacket::toBytes)
                 .consumerMainThread(ServerboundTypewriterTextPacket::handle)
                 .add();
+
+        net.messageBuilder(ClientboundOpenTypewriterPacket.class, id(), NetworkDirection.PLAY_TO_CLIENT)
+        .decoder(ClientboundOpenTypewriterPacket::new)
+        .encoder(ClientboundOpenTypewriterPacket::toBytes)
+        .consumerMainThread(ClientboundOpenTypewriterPacket::handle)
+        .add();
     }
 
     public static <MSG> void sendToServer(MSG message) {
         INSTANCE.sendToServer(message);
+    }
+
+    public static <MSG> void sendToPlayer(MSG message, ServerPlayer player) {
+    INSTANCE.send(net.minecraftforge.network.PacketDistributor.PLAYER.with(() -> player), message);
     }
 
     public static class ServerboundTypewriterTextPacket {
@@ -83,17 +94,71 @@ public class ModMessages {
         public boolean handle(Supplier<NetworkEvent.Context> supplier) {
             NetworkEvent.Context context = supplier.get();
             context.enqueueWork(() -> {
-                ServerLevel level = context.getSender().serverLevel();
+                net.minecraft.server.level.ServerPlayer sender = context.getSender();
+                if (sender == null) return;
+                
+                ServerLevel level = sender.serverLevel();
                 if (level.hasChunkAt(pos) && level.getBlockEntity(pos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                    
                     be.updateTextFromServer(this.pagesText);
                     be.dialogueStep = this.dialogueStep;
                     be.rewardType = this.rewardType;
                     be.currentEventId = this.currentEventId;
                     be.firstAnswerWasBad = this.firstAnswerWasBad;
                     
+                    if (be.dialogueStep == 3) {
+                        be.lastCompletedDay = level.getDayTime() / 24000L;
+
+                        long timeOfDay = level.getDayTime() % 24000L;
+                        int ticksUntilNewDay = (int) (24000L - timeOfDay);
+                        if (ticksUntilNewDay <= 0) ticksUntilNewDay = 1;
+
+                        if (be.rewardType % 2 != 0) {
+                            com.closetfunc.event.GoodRewards.execute(be.rewardType, sender, level, ticksUntilNewDay);
+                        } else {
+                            com.closetfunc.event.BadRewards.execute(be.rewardType, sender, level, ticksUntilNewDay);
+                        }
+                    }
+                    
                     be.setChanged();
                     level.sendBlockUpdated(pos, level.getBlockState(pos), level.getBlockState(pos), 3);
                 }
+            });
+            return true;
+        }
+    }
+
+        public static class ClientboundOpenTypewriterPacket {
+        private final BlockPos pos;
+        private final int paperCount;
+        private final int surveyDay;
+        private final String firstPageText;
+
+        public ClientboundOpenTypewriterPacket(BlockPos pos, int paperCount, int surveyDay, String firstPageText) {
+            this.pos = pos;
+            this.paperCount = paperCount;
+            this.surveyDay = surveyDay;
+            this.firstPageText = firstPageText != null ? firstPageText : "";
+        }
+
+        public ClientboundOpenTypewriterPacket(FriendlyByteBuf buf) {
+            this.pos = buf.readBlockPos();
+            this.paperCount = buf.readInt();
+            this.surveyDay = buf.readInt();
+            this.firstPageText = buf.readUtf();
+        }
+
+        public void toBytes(FriendlyByteBuf buf) {
+            buf.writeBlockPos(pos);
+            buf.writeInt(paperCount);
+            buf.writeInt(surveyDay);
+            buf.writeUtf(firstPageText);
+        }
+
+        public boolean handle(Supplier<NetworkEvent.Context> supplier) {
+            NetworkEvent.Context context = supplier.get();
+            context.enqueueWork(() -> {
+                com.closetfunc.client.ClosetClient.openCustomTypewriterScreen(this.pos, this.paperCount, this.surveyDay, this.firstPageText);
             });
             return true;
         }

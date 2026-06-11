@@ -1,29 +1,28 @@
 package com.closetfunc.event;
 
 import java.util.List;
-
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.monster.Monster;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.player.Player;
+import net.minecraftforge.event.entity.living.LivingAttackEvent;
+import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
 
 @SuppressWarnings("null")
 public class GoodRewards {
     public static void execute(int rewardId, ServerPlayer player, ServerLevel level, int duration) {
         switch (rewardId) {
-            case 1: // Исход 1: Тотальное выжигание монстров вокруг игрока
+            case 1: // День 1
                 executeAnnihilation(player, level);
                 break;
                 
-            case 3: // Исход 2: Аномальная гравитация (Высокий прыжок + подброс мобов)
-                executeLowGravity(player, level, duration);
+            case 3: // День 2
+                executeDayInvincibility(player, duration);
                 break;
-                
-            // Сюда будешь добавлять новые кейсы: case 5, case 7, case 9...
         }
     }
 
-    // Логика выжигания мобов (Событие 1)
     private static void executeAnnihilation(ServerPlayer player, ServerLevel level) {
         List<?> entities = level.getEntitiesOfClass(Monster.class, player.getBoundingBox().inflate(128.0D));
         for (Object obj : entities) {
@@ -33,27 +32,27 @@ public class GoodRewards {
         }
     }
 
-    // Логика аномальной гравитации (Событие 2)
-    private static void executeLowGravity(ServerPlayer player, ServerLevel level, int duration) {
-        // Отключаем урон от падения
-        player.fallDistance = 0.0F;
-        
-        // Выдаем прыгучесть IV
-        if (!player.hasEffect(net.minecraft.world.effect.MobEffects.JUMP)) {
-            player.addEffect(new net.minecraft.world.effect.MobEffectInstance(
-                net.minecraft.world.effect.MobEffects.JUMP, duration, 3, false, false
-            ));
+    private static void executeDayInvincibility(ServerPlayer player, int duration) {
+        if (!player.getPersistentData().getBoolean("TypewriterGodMode")) {
+            player.getPersistentData().putBoolean("TypewriterGodMode", true);
         }
+    }
 
-        // Если игрок в этот тик находится в воздухе и прыгает (летит вверх)
-        if (!player.onGround() && player.getDeltaMovement().y > 0.1) {
-            // Ищем монстров в радиусе 15 блоков вокруг игрока
-            List<Monster> nearbyMonsters = level.getEntitiesOfClass(Monster.class, player.getBoundingBox().inflate(15.0D));
-            for (Monster monster : nearbyMonsters) {
-                if (monster.isAlive()) {
-                    monster.setDeltaMovement(new Vec3(0, 0.6D, 0));
-                    monster.hurtMarked = true;
-                }
+    @SubscribeEvent
+    public static void onGodModeDefend(LivingHurtEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            if (player.getPersistentData().getBoolean("TypewriterGodMode")) {
+                event.setCanceled(true);
+                event.setAmount(0.0F);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onGodModeDefendAbsolute(LivingAttackEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            if (player.getPersistentData().getBoolean("TypewriterGodMode")) {
+                event.setCanceled(true);
             }
         }
     }

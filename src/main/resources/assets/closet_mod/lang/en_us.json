@@ -13,6 +13,7 @@
   "chat.closet_mod.typewriter.need": "*You need ",
   "chat.closet_mod.typewriter.paper": "paper",
   "chat.closet_mod.typewriter.end": " to use the typewriter...",
+  "chat.closet_mod.typewriter.death_hardcore": "Farewell. You're weak without me, of course_",
 
 
   /// System messages
@@ -22,9 +23,13 @@
   /// Messages from the entity in the typewriter
   "text.closet_mod.typewriter.step1.1": "Hello, human... \nHow are you doing? Good or not so good?)\n",
   "text.closet_mod.typewriter.step1.2": "Interesting... Are you happy with the use of the closet?|\n",
+  "text.closet_mod.typewriter.step2.1": "Hello again.\nDid you enjoy the event I gave you last night?}\n",
+  "text.closet_mod.typewriter.step2.2": "Got it.\nWould you ever like to feel completely invulnerable?]\n",
 
 
   /// Messages events
   "text.closet_mod.typewriter.event1.good": "I like you33\n I think... It's worth getting rid of all hostile entities at night#\n",
-  "text.closet_mod.typewriter.event1.bad": "I understand you... Goodbye. See you tomorrow-\n"
+  "text.closet_mod.typewriter.event1.bad": "I understand you... Goodbye. See you tomorrow-\n",
+  "text.closet_mod.typewriter.event2.good": "You continue to please me>>. It's time for you to feel completely invincible!=\n",
+  "text.closet_mod.typewriter.event2.bad": "It's a pity... You shouldn't refuse such useful gifts(\n"
 }

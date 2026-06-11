@@ -5,6 +5,8 @@ import com.closetfunc.block_entity.ModBlockEntities;
 import com.closetfunc.item.ModItems;
 import com.closetfunc.sound.ModSounds;
 import com.closetfunc.worldgen.ModFeature;
+import com.closetfunc.event.BadRewards;
+import com.closetfunc.event.GoodRewards;
 import com.closetfunc.event.ModEvents;
 import com.closetfunc.client.ClosetClient;
 import com.closetfunc.network.ModMessages;
@@ -30,6 +32,8 @@ public class MainCloset {
         ModMessages.register();
 
         MinecraftForge.EVENT_BUS.register(ModEvents.class);
+        MinecraftForge.EVENT_BUS.register(GoodRewards.class);
+        MinecraftForge.EVENT_BUS.register(BadRewards.class);
         MinecraftForge.EVENT_BUS.register(ModBlockEntities.ClosetBlockEntity.class);
         
         // Пасхалка на "Death Note"

@@ -333,17 +333,38 @@ public class ModBlocks {
             }
 
             if (state.getValue(HAS_PAPER)) {
-                if (!level.isClientSide) {
-                    if (typewriterBe.dialogueStep == 0 && (typewriterBe.pagesText[0] == null || typewriterBe.pagesText[0].isEmpty())) {
+                if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
+                    long currentWorldDayIndex = level.getDayTime() / 24000L;
+
+
+                    if (typewriterBe.dialogueStep == 3 && typewriterBe.lastCompletedDay != -1 && currentWorldDayIndex != typewriterBe.lastCompletedDay) {
+                        
+                        typewriterBe.surveyDay++; 
                         typewriterBe.dialogueStep = 1;
-                        typewriterBe.pagesText[0] = net.minecraft.client.resources.language.I18n.get("text.closet_mod.typewriter.step1");
+                        typewriterBe.rewardType = 0;
+                        typewriterBe.currentEventId = 0;
+                        typewriterBe.firstAnswerWasBad = false;
+                        
+                        typewriterBe.pagesText[0] = " "; 
+                        
                         typewriterBe.setChanged();
                         level.sendBlockUpdated(pos, state, state, 3);
                     }
-                } else {
-                    com.closetfunc.client.ClosetClient.openCustomTypewriterScreen(pos, typewriterBe.insertedPaperCount);
+                    
+                    if (typewriterBe.dialogueStep == 0 && (typewriterBe.pagesText[0] == null || typewriterBe.pagesText[0].isEmpty())) {
+                        typewriterBe.dialogueStep = 1;
+                        typewriterBe.pagesText[0] = " "; 
+                        typewriterBe.setChanged();
+                        level.sendBlockUpdated(pos, state, state, 3);
+                    }
+                    com.closetfunc.network.ModMessages.sendToPlayer(
+                        new com.closetfunc.network.ModMessages.ClientboundOpenTypewriterPacket(
+                            pos, typewriterBe.insertedPaperCount, typewriterBe.surveyDay, typewriterBe.pagesText[0]
+                        ), 
+                        serverPlayer
+                    );
                 }
-                return InteractionResult.SUCCESS;
+                return InteractionResult.sidedSuccess(level.isClientSide);
             }
 
             if (!level.isClientSide) {
