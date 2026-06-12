@@ -98,8 +98,18 @@ public class ModMessages {
                 if (sender == null) return;
                 
                 ServerLevel level = sender.serverLevel();
+                var playerNBT = sender.getPersistentData();
+
+                playerNBT.putInt("TypewriterDialogueStep", this.dialogueStep);
+                playerNBT.putInt("TypewriterRewardType", this.rewardType);
+                playerNBT.putInt("TypewriterCurrentEventId", this.currentEventId);
+                playerNBT.putBoolean("TypewriterFirstAnswerWasBad", this.firstAnswerWasBad);
+                
+                if (this.pagesText != null && this.pagesText.length > 0) {
+                    playerNBT.putString("TypewriterFirstPageText", this.pagesText[0] != null ? this.pagesText[0] : " ");
+                }
+
                 if (level.hasChunkAt(pos) && level.getBlockEntity(pos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
-                    
                     be.updateTextFromServer(this.pagesText);
                     be.dialogueStep = this.dialogueStep;
                     be.rewardType = this.rewardType;
@@ -107,17 +117,16 @@ public class ModMessages {
                     be.firstAnswerWasBad = this.firstAnswerWasBad;
                     
                     if (be.dialogueStep == 3) {
-                        be.lastCompletedDay = level.getDayTime() / 24000L;
+                        long currentDayIndex = level.getDayTime() / 24000L;
+                        
+                        be.lastCompletedDay = currentDayIndex;
+                        playerNBT.putLong("TypewriterLastCompletedDay", currentDayIndex);
 
                         long timeOfDay = level.getDayTime() % 24000L;
                         int ticksUntilNewDay = (int) (24000L - timeOfDay);
                         if (ticksUntilNewDay <= 0) ticksUntilNewDay = 1;
 
-                        if (be.rewardType % 2 != 0) {
-                            com.closetfunc.event.GoodRewards.execute(be.rewardType, sender, level, ticksUntilNewDay);
-                        } else {
-                            com.closetfunc.event.BadRewards.execute(be.rewardType, sender, level, ticksUntilNewDay);
-                        }
+                        com.closetfunc.event.SurveyManager.triggerReward(be.rewardType, sender, level, ticksUntilNewDay);
                     }
                     
                     be.setChanged();

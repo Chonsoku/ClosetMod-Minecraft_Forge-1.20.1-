@@ -196,33 +196,68 @@ public class ModEvents {
     }
 
     @SubscribeEvent
-    public static void onWorldNightTick(TickEvent.LevelTickEvent event) {
-        if (event.phase != TickEvent.Phase.END || event.level.isClientSide() || event.level.getGameTime() % 20 != 0) return;
+    public static void onPlayerDayModifiers(TickEvent.PlayerTickEvent event) {
+        if (event.phase != TickEvent.Phase.END || event.player.level().isClientSide) return;
         
-        net.minecraft.server.level.ServerLevel level = (net.minecraft.server.level.ServerLevel) event.level;
+        ServerPlayer player = (ServerPlayer) event.player;
+        net.minecraft.server.level.ServerLevel level = player.serverLevel();
+        
+        long currentWorldDayIndex = level.getDayTime() / 24000L;
         long timeOfDay = level.getDayTime() % 24000L;
-        
-        // Ночь: от 13000 до 23800 тиков
-        if (timeOfDay >= 13000L && timeOfDay <= 23800L) {
-            long ticksUntilMorning = 24000L - timeOfDay;
-            int duration = (int) ticksUntilMorning;
 
-            for (ServerPlayer serverPlayer : level.players()) {
-                BlockPos playerPos = serverPlayer.blockPosition();
-                int r = 16;
+        if (player.getPersistentData().contains("DeathNoteTimeTarget")) {
+            long deathTimeTarget = player.getPersistentData().getLong("DeathNoteTimeTarget");
+            if (level.getGameTime() >= deathTimeTarget) {
+                player.getPersistentData().remove("DeathNoteTimeTarget");
 
-                for (BlockPos targetPos : BlockPos.betweenClosed(playerPos.offset(-r, -4, -r), playerPos.offset(r, 4, r))) {
-                    if (level.getBlockEntity(targetPos) instanceof ModBlockEntities.TypewriterBlockEntity typewriter && typewriter.rewardType > 0) {
-                        
-                        // РАСПРЕДЕЛЕНИЕ ПО КЛАССАМ:
-                        if (typewriter.rewardType % 2 != 0) {
-                            // Нечётные (1, 3, 5...) уходят в класс ХОРОШИХ исходов
-                            GoodRewards.execute(typewriter.rewardType, serverPlayer, level, duration);
-                        } else {
-                            // Чётные (2, 4, 6...) уходят в класс ПЛОХИХ исходов
-                            BadRewards.execute(typewriter.rewardType, serverPlayer, level, duration);
+                net.minecraft.world.damagesource.DamageSource heartAttackSource = 
+                    new net.minecraft.world.damagesource.DamageSource(
+                        level.registryAccess().registryOrThrow(net.minecraft.core.registries.Registries.DAMAGE_TYPE)
+                            .getHolderOrThrow(net.minecraft.world.damagesource.DamageTypes.FELL_OUT_OF_WORLD)
+                    ) {
+                        @Override
+                        public net.minecraft.network.chat.Component getLocalizedDeathMessage(net.minecraft.world.entity.LivingEntity entity) {
+                            return net.minecraft.network.chat.Component.translatable("death.attack.heart_attack", entity.getDisplayName());
                         }
-                    }
+                    };
+
+                player.hurt(heartAttackSource, Float.MAX_VALUE);
+            }
+        }
+
+        if (player.getPersistentData().contains("TypewriterEffectsExpiryDay")) {
+            long expiryDay = player.getPersistentData().getLong("TypewriterEffectsExpiryDay");
+            if (currentWorldDayIndex >= expiryDay) {
+                int activeRewardId = player.getPersistentData().getInt("ActiveTypewriterRewardId");
+                if (activeRewardId % 2 != 0) {
+                    GoodRewards.cleanup(activeRewardId, player, level);
+                } else {
+                    BadRewards.cleanup(activeRewardId, player, level);
+                }
+                player.getPersistentData().remove("ActiveTypewriterRewardId");
+                player.getPersistentData().remove("TypewriterEffectsExpiryDay");
+            }
+        }
+
+        int ticksUntilNewDay = (int) (24000L - timeOfDay);
+        if (ticksUntilNewDay <= 0) ticksUntilNewDay = 1;
+
+        if (player.getPersistentData().contains("ActiveTypewriterRewardId")) {
+            int activeRewardId = player.getPersistentData().getInt("ActiveTypewriterRewardId");
+            
+            if (activeRewardId % 2 != 0) {
+                GoodRewards.execute(activeRewardId, player, level, ticksUntilNewDay);
+            } else {
+                BadRewards.execute(activeRewardId, player, level, ticksUntilNewDay);
+            }
+        }
+
+        if (player.tickCount % 20 == 0) {
+            int radius = 16;
+            for (BlockPos targetPos : BlockPos.betweenClosed(player.blockPosition().offset(-radius, -4, -radius), player.blockPosition().offset(radius, 4, radius))) {
+                if (level.getBlockEntity(targetPos) instanceof ModBlockEntities.TypewriterBlockEntity typewriter && typewriter.rewardType > 0) {
+                    if (typewriter.rewardType == 1) GoodRewards.execute(1, player, level, ticksUntilNewDay);
+                    if (typewriter.rewardType == 2) BadRewards.execute(2, player, level, ticksUntilNewDay);
                 }
             }
         }

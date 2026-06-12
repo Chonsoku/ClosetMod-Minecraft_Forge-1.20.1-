@@ -36,19 +36,6 @@ public class ClosetClient {
         }
     }
 
-    @net.minecraftforge.eventbus.api.SubscribeEvent
-    public static void onRenderHearts(net.minecraftforge.client.event.RenderGuiOverlayEvent.Pre event) {
-        if (event.getOverlay().id().getPath().equals("player_health")) {
-            net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
-            
-            if (player != null && player.getPersistentData().getBoolean("TypewriterHardcoreMode")) {
-                if (Minecraft.getInstance().level != null) {
-                    Minecraft.getInstance().level.getLevelData().isHardcore(); 
-                }
-            }
-        }
-    }
-
     public static void openCustomTypewriterScreen(BlockPos pos, int paperCount, int surveyDay, String serverFirstPageText) {
         Minecraft.getInstance().setScreen(new TypewriterSingleScreen(pos, paperCount, surveyDay, serverFirstPageText));
     }
@@ -81,6 +68,8 @@ public class ClosetClient {
             this.localPagesText[0] = serverFirstPageText != null ? serverFirstPageText : " ";
         }
 
+        
+
         @Override
         protected void init() {
             this.clearWidgets();
@@ -111,6 +100,15 @@ public class ClosetClient {
 
         @Override
         public void onClose() {
+            if (Minecraft.getInstance().level != null && Minecraft.getInstance().level.getBlockEntity(blockPos) instanceof ModBlockEntities.TypewriterBlockEntity be) {
+                if (be.dialogueStep < 3) {
+                    com.closetfunc.network.ModMessages.sendToServer(new com.closetfunc.network.ModMessages.ServerboundTypewriterTextPacket(
+                        blockPos, this.localPagesText, be.dialogueStep, be.rewardType, be.currentEventId, be.firstAnswerWasBad
+                    ));
+                    super.onClose();
+                    return;
+                }
+            }
             saveTextToBlockEntity();
             super.onClose();
         }
@@ -410,15 +408,7 @@ public class ClosetClient {
 
                         be.currentEventId = this.currentSurveyDay; 
 
-                        // Формула автоматически сгенерирует:
-                        // День 1 -> Хороший: 1, Плохой: 2
-                        // День 2 -> Хороший: 3, Плохой: 4
-                        // День 3 -> Хороший: 5, Плохой: 6 ...
-                        if (totalNegative) {
-                            be.rewardType = be.currentEventId * 2;       
-                        } else {
-                            be.rewardType = (be.currentEventId * 2) - 1; 
-                        }
+                        be.rewardType = com.closetfunc.event.SurveyManager.calculateRewardType(this.currentSurveyDay, totalNegative);
                         
                         this.localPagesText[currentPage] = fullPageText + " \n§7загляни в эту печатную машинку завтра\n я буду тебя там ждать*§r";
                         

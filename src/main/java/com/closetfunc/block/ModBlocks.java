@@ -335,31 +335,53 @@ public class ModBlocks {
             if (state.getValue(HAS_PAPER)) {
                 if (!level.isClientSide && player instanceof ServerPlayer serverPlayer) {
                     long currentWorldDayIndex = level.getDayTime() / 24000L;
+                    var playerNBT = serverPlayer.getPersistentData();
 
+                    if (!playerNBT.contains("TypewriterSurveyDay")) playerNBT.putInt("TypewriterSurveyDay", 1);
+                    if (!playerNBT.contains("TypewriterDialogueStep")) playerNBT.putInt("TypewriterDialogueStep", 0);
+                    if (!playerNBT.contains("TypewriterLastCompletedDay")) playerNBT.putLong("TypewriterLastCompletedDay", -1L);
+                    if (!playerNBT.contains("TypewriterRewardType")) playerNBT.putInt("TypewriterRewardType", 0);
+                    if (!playerNBT.contains("TypewriterFirstPageText")) playerNBT.putString("TypewriterFirstPageText", " ");
 
-                    if (typewriterBe.dialogueStep == 3 && typewriterBe.lastCompletedDay != -1 && currentWorldDayIndex != typewriterBe.lastCompletedDay) {
+                    int pSurveyDay = playerNBT.getInt("TypewriterSurveyDay");
+                    int pDialogueStep = playerNBT.getInt("TypewriterDialogueStep");
+                    long pLastCompletedDay = playerNBT.getLong("TypewriterLastCompletedDay");
+
+                    if (pDialogueStep == 3 && pLastCompletedDay != -1 && currentWorldDayIndex != pLastCompletedDay) {
+                        if (pSurveyDay < com.closetfunc.event.SurveyManager.MAX_DAYS) {
+                            pSurveyDay++;
+                            playerNBT.putInt("TypewriterSurveyDay", pSurveyDay);
+                        }
                         
-                        typewriterBe.surveyDay++; 
-                        typewriterBe.dialogueStep = 1;
-                        typewriterBe.rewardType = 0;
-                        typewriterBe.currentEventId = 0;
-                        typewriterBe.firstAnswerWasBad = false;
+                        pDialogueStep = 1;
+                        playerNBT.putInt("TypewriterDialogueStep", pDialogueStep);
+                        playerNBT.putInt("TypewriterRewardType", 0);
+                        playerNBT.putInt("TypewriterCurrentEventId", 0);
+                        playerNBT.putBoolean("TypewriterFirstAnswerWasBad", false);
                         
-                        typewriterBe.pagesText[0] = " "; 
-                        
-                        typewriterBe.setChanged();
-                        level.sendBlockUpdated(pos, state, state, 3);
+                        playerNBT.putString("TypewriterFirstPageText", " "); // Стираем текст
                     }
                     
-                    if (typewriterBe.dialogueStep == 0 && (typewriterBe.pagesText[0] == null || typewriterBe.pagesText[0].isEmpty())) {
-                        typewriterBe.dialogueStep = 1;
-                        typewriterBe.pagesText[0] = " "; 
-                        typewriterBe.setChanged();
-                        level.sendBlockUpdated(pos, state, state, 3);
+                    if (pDialogueStep == 0) {
+                        pDialogueStep = 1;
+                        playerNBT.putInt("TypewriterDialogueStep", pDialogueStep);
+                        playerNBT.putString("TypewriterFirstPageText", " ");
                     }
+
+                    typewriterBe.surveyDay = pSurveyDay;
+                    typewriterBe.dialogueStep = pDialogueStep;
+                    typewriterBe.lastCompletedDay = pLastCompletedDay;
+                    typewriterBe.rewardType = playerNBT.getInt("TypewriterRewardType");
+                    typewriterBe.currentEventId = playerNBT.getInt("TypewriterCurrentEventId");
+                    typewriterBe.firstAnswerWasBad = playerNBT.getBoolean("TypewriterFirstAnswerWasBad");
+                    typewriterBe.pagesText[0] = playerNBT.getString("TypewriterFirstPageText");
+                    
+                    typewriterBe.setChanged();
+                    level.sendBlockUpdated(pos, state, state, 3);
+
                     com.closetfunc.network.ModMessages.sendToPlayer(
                         new com.closetfunc.network.ModMessages.ClientboundOpenTypewriterPacket(
-                            pos, typewriterBe.insertedPaperCount, typewriterBe.surveyDay, typewriterBe.pagesText[0]
+                            pos, typewriterBe.insertedPaperCount, pSurveyDay, typewriterBe.pagesText[0]
                         ), 
                         serverPlayer
                     );
