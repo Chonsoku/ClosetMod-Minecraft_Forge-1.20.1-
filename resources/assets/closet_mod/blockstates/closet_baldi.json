@@ -1,0 +1,23 @@
+{
+  "variants": {
+    "facing=north,half=lower,open=false": { "model": "closet_mod:block/closet-baldi" },
+    "facing=north,half=lower,open=true":  { "model": "closet_mod:block/closet-baldi_open" },
+    "facing=north,half=upper,open=false": { "model": "minecraft:block/air" },
+    "facing=north,half=upper,open=true":  { "model": "minecraft:block/air" },
+
+    "facing=south,half=lower,open=false": { "model": "closet_mod:block/closet-baldi", "y": 180 },
+    "facing=south,half=lower,open=true":  { "model": "closet_mod:block/closet-baldi_open", "y": 180 },
+    "facing=south,half=upper,open=false": { "model": "minecraft:block/air" },
+    "facing=south,half=upper,open=true":  { "model": "minecraft:block/air" },
+
+    "facing=east,half=lower,open=false":  { "model": "closet_mod:block/closet-baldi", "y": 90 },
+    "facing=east,half=lower,open=true":   { "model": "closet_mod:block/closet-baldi_open", "y": 90 },
+    "facing=east,half=upper,open=false":  { "model": "minecraft:block/air" },
+    "facing=east,half=upper,open=true":   { "model": "minecraft:block/air" },
+
+    "facing=west,half=lower,open=false":  { "model": "closet_mod:block/closet-baldi", "y": 270 },
+    "facing=west,half=lower,open=true":   { "model": "closet_mod:block/closet-baldi_open", "y": 270 },
+    "facing=west,half=upper,open=false":  { "model": "minecraft:block/air" },
+    "facing=west,half=upper,open=true":   { "model": "minecraft:block/air" }
+  }
+}

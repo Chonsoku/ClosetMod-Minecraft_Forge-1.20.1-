@@ -1,0 +1,39 @@
+{ /// Names for blocks
+  "block.closet_mod.closet": "Closet",
+  "item.closet_mod.closet": "Closet",
+  "block.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
+  "item.closet_mod.closet_batim": "Little Miracle Station (BatIM)",
+  "block.closet_mod.closet_baldi": "Locker (Baldi's Basics)",
+  "item.closet_mod.closet_baldi": "Locker (Baldi's Basics)",
+  "block.closet_mod.typewriter": "Typewriter",
+  "item.closet_mod.typewriter": "Typewriter",
+
+
+  /// Messages to chat
+  "chat.closet_mod.typewriter.need": "*You need ",
+  "chat.closet_mod.typewriter.paper": "paper",
+  "chat.closet_mod.typewriter.end": " to use the typewriter...",
+  "chat.closet_mod.typewriter.death_hardcore": "Farewell. You're weak without me, of course_",
+
+
+  /// System messages
+  "death.attack.heart_attack": "%1$s died of a heart attack...",
+
+
+  /// Messages from the entity in the typewriter
+  "text.closet_mod.typewriter.step1.1": "Hello, human... \nHow are you doing? Good or not so good?)\n",
+  "text.closet_mod.typewriter.step1.2": "Interesting... Are you happy with the use of the closet?|\n",
+  "text.closet_mod.typewriter.step2.1": "Hello again.\nDid you enjoy the event I gave you last night?}\n",
+  "text.closet_mod.typewriter.step2.2": "Got it.\nWould you ever like to feel completely invulnerable?]\n",
+  "text.closet_mod.typewriter.step3.1": "Hello!\nWith my previous 'gifts' I've probably made the game a lot easier for you.\nAre you grateful to me for this?^",
+  "text.closet_mod.typewriter.step3.2": "Hmm. Let's say...\nNow, how about a set of netherite armor and weapons, along with the elytra?3",
+
+
+  /// Messages events
+  "text.closet_mod.typewriter.event1.good": "I like you33\n I think... It's worth getting rid of all hostile entities at night#\n",
+  "text.closet_mod.typewriter.event1.bad": "I understand you... Goodbye. See you tomorrow-\n",
+  "text.closet_mod.typewriter.event2.good": "You continue to please me>>. It's time for you to feel completely invincible!=\n",
+  "text.closet_mod.typewriter.event2.bad": "It's a pity... You shouldn't refuse such useful gifts(\n",
+  "text.closet_mod.typewriter.event3.good": "You're quite predictable, but I think I like that about you@\n",
+  "text.closet_mod.typewriter.event3.bad": "what+are+you/\n"
+}
